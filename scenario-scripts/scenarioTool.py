@@ -153,16 +153,8 @@ class ScenarioToolGUI(QMainWindow):
         
         # Create drop area
         self.drop_label = QLabel('Drop .scenario file here\nNo file loaded')
+        self.drop_label.setObjectName("dropLabel")  # Set object name for CSS targeting
         self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.drop_label.setStyleSheet("""
-            QLabel {
-                border: 2px dashed #666;
-                border-radius: 8px;
-                padding: 20px;
-                background: #f0f0f0;
-                white-space: pre-line;  /* Allow \n to create new lines */
-            }
-        """)
         self.drop_label.setMinimumHeight(100)
         layout.addWidget(self.drop_label)
         
@@ -196,47 +188,19 @@ class ScenarioToolGUI(QMainWindow):
         # Enable drop events
         self.setAcceptDrops(True)
         
-        # Apply stylesheet
-        self.apply_stylesheet()
+        # Load stylesheet
+        self.load_stylesheet()
         
-    def apply_stylesheet(self):
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #2b2b2b;
-                color: #ffffff;
-            }
-            QLabel {
-                color: #ffffff;
-                font-size: 14px;
-            }
-            QPushButton {
-                background-color: #0d47a1;
-                color: white;
-                border: none;
-                padding: 10px;
-                border-radius: 4px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #1565c0;
-            }
-            QPushButton:pressed {
-                background-color: #0a3880;
-            }
-            QListWidget {
-                background-color: #3b3b3b;
-                color: #ffffff;
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 5px;
-            }
-            QListWidget::item:selected {
-                background-color: #0d47a1;
-            }
-            QListWidget::item:hover {
-                background-color: #4b4b4b;
-            }
-        """)
+    def load_stylesheet(self):
+        try:
+            style_path = Path("style.qss")
+            if style_path.exists():
+                with open(style_path, 'r') as f:
+                    self.setStyleSheet(f.read())
+            else:
+                print("Warning: style.qss not found")
+        except Exception as e:
+            print(f"Error loading stylesheet: {e}")
     
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasUrls():
