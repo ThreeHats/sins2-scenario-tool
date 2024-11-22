@@ -5,28 +5,56 @@ import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit)
-from PyQt6.QtCore import Qt, QMimeData
+from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class ScenarioTool:
     def __init__(self):
         # Base directories
         self.output_dir = Path("output")
-        self.templates_dir = Path("templates")
         
-        # Separate working and script directories for each type
+        # User and community directories
+        self.user_dir = Path("user")
+        self.community_dir = Path("community")
+        
+        # Template directories
+        self.templates_dirs = {
+            'user': self.user_dir / "templates",
+            'community': self.community_dir / "templates"
+        }
+        
+        # Script directories
+        self.script_dirs = {
+            'user': {
+                'chart': self.user_dir / "scripts/chart",
+                'generator': self.user_dir / "scripts/generator"
+            },
+            'community': {
+                'chart': self.community_dir / "scripts/chart",
+                'generator': self.community_dir / "scripts/generator"
+            }
+        }
+        
+        # Working directories stay the same
         self.working_dirs = {
             'chart': Path("working/chart"),
             'generator': Path("working/generator")
         }
-        self.script_dirs = {
-            'chart': Path("scripts/chart"),
-            'generator': Path("scripts/generator")
-        }
         
         # Create all necessary directories
-        for directory in [self.output_dir, self.templates_dir, *self.working_dirs.values(), *self.script_dirs.values()]:
+        for directory in [self.output_dir, *self.working_dirs.values()]:
             directory.mkdir(parents=True, exist_ok=True)
+            
+        for templates_dir in self.templates_dirs.values():
+            for type_dir in ['chart', 'generator']:
+                (templates_dir / type_dir).mkdir(parents=True, exist_ok=True)
+                
+        for scripts in self.script_dirs.values():
+            for script_dir in scripts.values():
+                script_dir.mkdir(parents=True, exist_ok=True)
         
         # Expected files in a scenario
         self.required_files = [
@@ -119,28 +147,106 @@ class ScenarioTool:
             print(f"Error creating scenario: {e}")
             return False
     
-    def load_template(self, template_name: str) -> bool:
+    def load_template(self, template_name: str, source: str = 'user', expected_type: str = None) -> tuple[bool, str]:
         """Load a predefined template into working directory"""
-        template_dir = self.templates_dir / template_name
-        if not template_dir.exists():
-            print(f"Template not found: {template_name}")
-            return False
+        logging.debug(f"Loading template: name={template_name}, source={source}, expected_type={expected_type}")
+        
+        # Remove .scenario extension if present
+        template_name = template_name.replace('.scenario', '')
+        
+        # Search in all type directories
+        templates_dir = self.templates_dirs[source]
+        for type_dir in ['chart', 'generator']:
+            template_path = templates_dir / type_dir / f"{template_name}.scenario"
+            logging.debug(f"Looking for template at: {template_path}")
             
-        try:
-            for file in self.required_files:
-                source = template_dir / file
-                if source.exists():
-                    shutil.copy2(source, self.working_dirs[self.current_type] / file)
-            return True
-        except Exception as e:
-            print(f"Error loading template: {e}")
+            if template_path.exists():
+                try:
+                    # Check type before extracting
+                    detected_type = self.determine_scenario_type(template_path)
+                    message = ""
+                    
+                    if detected_type != type_dir:
+                        logging.warning(f"Template type mismatch: found in {type_dir} but is {detected_type}")
+                        # Try to relocate the template
+                        new_path, reloc_message = self.relocate_template(template_path, detected_type)
+                        message = reloc_message
+                        if new_path:
+                            template_path = new_path
+                            logging.info("Template relocated successfully")
+                        else:
+                            logging.warning("Failed to relocate template, continuing with original location")
+                    
+                    # Extract template
+                    result = self.extract_scenario(template_path)
+                    if result:
+                        logging.debug(f"Template loaded successfully as {detected_type} type")
+                        return True, message
+                    else:
+                        logging.error("Failed to extract template")
+                        return False, "Failed to extract template"
+                except Exception as e:
+                    logging.error(f"Error loading template: {e}", exc_info=True)
+                    return False, f"Error loading template: {str(e)}"
+        
+        logging.error(f"Template not found: {template_name}")
+        return False, f"Template not found: {template_name}"
+    
+    def save_as_template(self, template_name: str) -> bool:
+        """Save the current scenario as a template"""
+        if not self.current_type:
+            print("No scenario loaded")
             return False
+        
+        try:
+            # Create template directory if it doesn't exist
+            template_dir = self.templates_dirs[self.current_type]
+            template_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Save directly as .scenario file
+            template_path = template_dir / f"{template_name}.scenario"
+            if template_path.exists():
+                print(f"A template with this name already exists: {template_name}")
+                return False
+            
+            # Create scenario file directly in template directory
+            return self.create_scenario(template_name, template_path.parent)
+            
+        except Exception as e:
+            print(f"Error saving template: {e}")
+            return False
+    
+    def relocate_template(self, template_path: Path, correct_type: str) -> tuple[Path | None, str]:
+        """Move template to the correct type directory"""
+        # Construct new path
+        new_path = template_path.parent.parent / correct_type / template_path.name
+        message = f"Moving template from {template_path.parent.name} to {correct_type} folder"
+        logging.debug(f"Relocating template from {template_path} to {new_path}")
+        
+        try:
+            # Create directory if it doesn't exist
+            new_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Move the file
+            if new_path.exists():
+                message = f"Cannot move template: already exists in {correct_type} folder"
+                logging.warning(f"Template already exists at destination: {new_path}")
+                return None, message
+            
+            template_path.rename(new_path)
+            logging.info(f"Successfully relocated template to {new_path}")
+            return new_path, message
+        except Exception as e:
+            message = f"Failed to move template: {str(e)}"
+            logging.error(f"Failed to relocate template: {e}")
+            return None, message
 
 class ScenarioToolGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.scenario_tool = ScenarioTool()
         self.init_ui()
+        self.setup_file_watchers()
         
     def init_ui(self):
         self.setWindowTitle('Sins 2 Scenario Tool')
@@ -150,6 +256,7 @@ class ScenarioToolGUI(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
+        
         
         # Create drop area
         self.drop_label = QLabel('Drop .scenario file here\nNo file loaded')
@@ -166,7 +273,7 @@ class ScenarioToolGUI(QMainWindow):
         
         # Create template list
         self.template_list = QListWidget()
-        self.template_list.addItems(['Template 1', 'Template 2'])  # Placeholder templates
+        self.update_template_list()
         layout.addWidget(QLabel('Available Templates:'))
         layout.addWidget(self.template_list)
         
@@ -178,10 +285,13 @@ class ScenarioToolGUI(QMainWindow):
         self.dir_input.textChanged.connect(self.update_save_directory)
         self.dir_select_btn = QPushButton('Browse...')
         self.dir_select_btn.clicked.connect(self.select_directory)
+        self.template_dir_btn = QPushButton('Save as Template')
+        self.template_dir_btn.clicked.connect(self.save_as_template)
         
         dir_layout.addWidget(dir_label)
         dir_layout.addWidget(self.dir_input)
         dir_layout.addWidget(self.dir_select_btn)
+        dir_layout.addWidget(self.template_dir_btn)
         layout.addLayout(dir_layout)
         
         # Add name input
@@ -263,6 +373,7 @@ class ScenarioToolGUI(QMainWindow):
             self.save_scenario_btn.setEnabled(True)
             # Update script list based on scenario type
             self.update_script_list()
+            self.update_template_list()
     
     def run_script(self):
         if self.script_list.currentItem():
@@ -271,10 +382,36 @@ class ScenarioToolGUI(QMainWindow):
     
     def load_template(self):
         if self.template_list.currentItem():
-            template_name = self.template_list.currentItem().text()
-            self.scenario_tool.load_template(template_name)
-            self.drop_label.setText(f'Loaded template: {template_name}')
-            self.save_scenario_btn.setEnabled(True)
+            full_name = self.template_list.currentItem().text()
+            logging.debug(f"Loading template: {full_name}")
+            
+            try:
+                # Handle both "source: name" and "source/type: name" formats
+                if '/' in full_name:
+                    source_type, name = full_name.split(': ')
+                    source, expected_type = source_type.split('/')
+                else:
+                    source, name = full_name.split(': ')
+                    expected_type = None
+                
+                logging.debug(f"Parsed template: source={source}, type={expected_type}, name={name}")
+                
+                # Load the template
+                success, message = self.scenario_tool.load_template(name, source, expected_type)
+                if success:
+                    status = f'Loaded template: {name}'
+                    if message:  # Add relocation message if present
+                        status += f'\n{message}'
+                    self.drop_label.setText(status)
+                    self.save_scenario_btn.setEnabled(True)
+                    # Update lists to reflect new type and possible relocation
+                    self.update_template_list()
+                    self.update_script_list()
+                else:
+                    self.drop_label.setText(message)
+            except ValueError as e:
+                self.drop_label.setText('Invalid template format')
+                logging.error(f"Error parsing template name: {e}")
     
     def save_scenario(self):
         if not self.name_input.text():
@@ -290,14 +427,19 @@ class ScenarioToolGUI(QMainWindow):
             self.drop_label.setText('Scenario saved successfully!')
     
     def update_script_list(self):
-        """Update the list of available scripts based on current scenario type"""
+        """Update the list of available scripts"""
         self.script_list.clear()
         if self.scenario_tool.current_type:
-            scripts_dir = self.scenario_tool.script_dirs[self.scenario_tool.current_type]
-            if scripts_dir.exists():
-                for script_file in scripts_dir.glob("*.py"):
-                    if script_file.stem != "__init__":
-                        self.script_list.addItem(script_file.stem)
+            all_scripts = []
+            # Get scripts from both user and community directories
+            for source, scripts in self.scenario_tool.script_dirs.items():
+                script_dir = scripts[self.scenario_tool.current_type]
+                if script_dir.exists():
+                    scripts = [f"{source}: {p.stem}" 
+                              for p in script_dir.glob("*.py")
+                              if p.stem != "__init__"]
+                    all_scripts.extend(scripts)
+            self.script_list.addItems(sorted(all_scripts))
     
     def select_directory(self):
         dir_name = QFileDialog.getExistingDirectory(
@@ -350,6 +492,92 @@ class ScenarioToolGUI(QMainWindow):
     def use_default_directory(self):
         self.dir_input.setText(str(Path("output")))
         self.update_save_directory()
+    
+    def save_as_template(self):
+        if not self.name_input.text():
+            self.drop_label.setText('Please enter a template name')
+            logging.debug("Template save attempted without name")
+            return
+        
+        if not self.scenario_tool.current_type:
+            self.drop_label.setText('Please load a scenario first')
+            logging.debug("Template save attempted without scenario loaded")
+            return
+        
+        # Save to user templates directory
+        template_path = (self.scenario_tool.templates_dirs['user'] / 
+                        self.scenario_tool.current_type / 
+                        f"{self.name_input.text()}.scenario")
+        
+        logging.debug(f"Attempting to save template to: {template_path}")
+        
+        if template_path.exists():
+            self.drop_label.setText('A template with this name already exists')
+            logging.debug(f"Template already exists at: {template_path}")
+            return
+        
+        try:
+            template_path.parent.mkdir(parents=True, exist_ok=True)
+            if self.scenario_tool.create_scenario(template_path.stem, template_path.parent):
+                self.drop_label.setText('Template saved successfully!')
+                self.update_template_list()
+                logging.debug("Template saved successfully")
+        except Exception as e:
+            self.drop_label.setText(f'Error saving template: {e}')
+            logging.error(f"Error saving template: {e}", exc_info=True)
+    
+    def update_template_list(self):
+        """Update the list of available templates"""
+        self.template_list.clear()
+        logging.debug("Updating template list")
+        
+        all_templates = []
+        # Get templates from both user and community directories
+        for source, templates_dir in self.scenario_tool.templates_dirs.items():
+            # First, check for templates directly in templates directory
+            for template in templates_dir.glob("*.scenario"):
+                all_templates.append(f"{source}: {template.stem}")
+            
+            # Then check type subdirectories
+            for type_dir in ['chart', 'generator']:
+                type_path = templates_dir / type_dir
+                if type_path.exists():
+                    templates = [f"{source}/{type_dir}: {p.stem}" 
+                               for p in type_path.glob("*.scenario")]
+                    all_templates.extend(templates)
+        
+        logging.debug(f"Found all templates: {all_templates}")
+        self.template_list.addItems(sorted(all_templates))
+    
+    def setup_file_watchers(self):
+        """Setup watchers for scripts and templates directories"""
+        self.watcher = QFileSystemWatcher()
+        
+        # Add script directories
+        for scripts in self.scenario_tool.script_dirs.values():
+            for script_dir in scripts.values():
+                script_dir.mkdir(parents=True, exist_ok=True)
+                self.watcher.addPath(str(script_dir))
+        
+        # Add template type directories
+        for templates_dir in self.scenario_tool.templates_dirs.values():
+            for type_dir in ['chart', 'generator']:
+                (templates_dir / type_dir).mkdir(parents=True, exist_ok=True)
+                self.watcher.addPath(str(templates_dir / type_dir))
+        
+        # Connect signals
+        self.watcher.directoryChanged.connect(self.handle_directory_change)
+    
+    def handle_directory_change(self, path):
+        """Handle changes in watched directories"""
+        path = Path(path)
+        logging.debug(f"Directory changed: {path}")
+        if path.parent.name == "scripts":
+            logging.debug("Updating script list due to directory change")
+            self.update_script_list()
+        elif path.parent.name == "templates":
+            logging.debug("Updating template list due to directory change")
+            self.update_template_list()
 
 def main():
     app = QApplication(sys.argv)
