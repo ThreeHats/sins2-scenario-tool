@@ -4,10 +4,11 @@ import zipfile
 import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit)
+                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy)
 from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 import logging
+import time
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -98,34 +99,64 @@ class ScenarioTool:
             print(f"Error extracting scenario: {e}")
             return False
     
-    def apply_script(self, script_name: str) -> bool:
-        """Apply a script from the appropriate directory"""
+    def apply_script(self, script_name: str) -> tuple[bool, str, float]:
+        """Apply a script from the appropriate directory. Returns (success, message, execution_time)"""
         if not self.current_type:
-            print("No scenario loaded")
-            return False
-            
+            msg = "No scenario loaded"
+            logging.error(msg)
+            return False, msg, 0
+        
+        import time
+        start_time = time.time()
+        
         try:
-            script_path = self.script_dirs[self.current_type] / f"{script_name}.py"
-            if not script_path.exists():
-                print(f"Script not found: {script_path}")
-                return False
+            # Remove any .py extension if present
+            script_name = script_name.replace('.py', '')
+            script_path = self.script_dirs['user'][self.current_type] / f"{script_name}.py"
             
-            # Import and run the script
+            # If not found in user scripts, try community scripts
+            if not script_path.exists():
+                script_path = self.script_dirs['community'][self.current_type] / f"{script_name}.py"
+            
+            if not script_path.exists():
+                msg = f"Script not found: {script_name}"
+                logging.error(msg)
+                return False, msg, 0
+            
+            logging.info(f"Running script: {script_name} from {script_path}")
+            
+            # Import and run the script in a controlled environment
             import importlib.util
             spec = importlib.util.spec_from_file_location(script_name, script_path)
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
             
-            if hasattr(module, 'transform_scenario'):
+            try:
+                spec.loader.exec_module(module)
+            except Exception as e:
+                msg = f"Error loading script {script_name}: {str(e)}"
+                logging.error(msg, exc_info=True)
+                return False, msg, time.time() - start_time
+            
+            if not hasattr(module, 'transform_scenario'):
+                msg = f"Script {script_name} does not have a transform_scenario function"
+                logging.error(msg)
+                return False, msg, time.time() - start_time
+            
+            try:
                 module.transform_scenario(self.working_dirs[self.current_type])
-                return True
-            else:
-                print(f"Script {script_name} does not have a transform_scenario function")
-                return False
+                execution_time = time.time() - start_time
+                msg = f"Successfully applied script: {script_name} ({execution_time:.2f}s)"
+                logging.info(msg)
+                return True, msg, execution_time
+            except Exception as e:
+                msg = f"Error in script {script_name}: {str(e)}"
+                logging.error(msg, exc_info=True)
+                return False, msg, time.time() - start_time
             
         except Exception as e:
-            print(f"Error applying script: {e}")
-            return False
+            msg = f"Unexpected error applying script: {str(e)}"
+            logging.error(msg, exc_info=True)
+            return False, msg, time.time() - start_time
     
     def create_scenario(self, output_name: str, source_dir: Path = None) -> bool:
         """Create .scenario file from json files"""
@@ -244,10 +275,13 @@ class ScenarioTool:
 class ScenarioToolGUI(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("Scenario Tool")
         self.scenario_tool = ScenarioTool()
         self.init_ui()
         self.setup_file_watchers()
-        
+        self.update_template_list()
+        self.update_script_list()
+    
     def init_ui(self):
         self.setWindowTitle('Sins 2 Scenario Tool')
         self.setMinimumSize(800, 600)
@@ -340,6 +374,37 @@ class ScenarioToolGUI(QMainWindow):
         # Load stylesheet
         self.load_stylesheet()
         
+        # Add status label
+        self.status_label = QLabel()
+        self.status_label.setObjectName("statusLabel")  # For CSS styling
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setText("Ready")
+        layout.addWidget(self.status_label)
+        
+        # Add log display
+        self.log_display = QListWidget()
+        # Make the log display stretch when the window is resized
+        self.log_display.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding
+        )
+        layout.addWidget(self.log_display)
+        
+        # Setup custom logging handler
+        self.log_handler = GUILogHandler(self.log_display)
+        self.log_handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+        logging.getLogger().addHandler(self.log_handler)
+        
+        # Enable run button when script is selected
+        self.script_list.itemSelectionChanged.connect(self.update_run_button_state)
+    
+    def update_run_button_state(self):
+        """Enable run button only when a script is selected and a scenario is loaded"""
+        self.run_script_btn.setEnabled(
+            self.script_list.currentItem() is not None and 
+            self.scenario_tool.current_type is not None
+        )
+    
     def load_stylesheet(self):
         try:
             style_path = Path("style.qss")
@@ -377,8 +442,56 @@ class ScenarioToolGUI(QMainWindow):
     
     def run_script(self):
         if self.script_list.currentItem():
-            script_name = self.script_list.currentItem().text()
-            self.scenario_tool.apply_script(script_name)
+            full_script_name = self.script_list.currentItem().text()
+            
+            # Parse "source: script_name" format
+            try:
+                source, script_name = full_script_name.split(": ", 1)  # Split on first occurrence only
+                logging.debug(f"Executing script from {source}: {script_name}")
+                
+                # Get the correct script directory
+                script_dir = self.scenario_tool.script_dirs[source][self.scenario_tool.current_type]
+                script_path = script_dir / f"{script_name}.py"
+                
+                # Update status before running
+                self.status_label.setText(f"Running script: {script_name}...")
+                self.status_label.setProperty("status", "running")
+                self.style().unpolish(self.status_label)
+                self.style().polish(self.status_label)
+                
+                # Disable controls during execution
+                self.script_list.setEnabled(False)
+                QApplication.processEvents()  # Force UI update
+                
+                try:
+                    success, message, execution_time = self.scenario_tool.apply_script(script_name)
+                    
+                    if success:
+                        status_msg = f"Script completed in {execution_time:.2f}s"
+                        self.status_label.setProperty("status", "success")
+                        self.drop_label.setText(f"{message}\nScenario updated successfully!")
+                    else:
+                        status_msg = f"Script failed after {execution_time:.2f}s"
+                        self.status_label.setProperty("status", "error")
+                        self.drop_label.setText(message)
+                    
+                    self.status_label.setText(status_msg)
+                    
+                except Exception as e:
+                    self.status_label.setText("Script execution failed")
+                    self.status_label.setProperty("status", "error")
+                    self.drop_label.setText(f"Error running script: {str(e)}")
+                    logging.error("Error in script execution", exc_info=True)
+                
+                finally:
+                    # Re-enable controls
+                    self.script_list.setEnabled(True)
+                    self.style().unpolish(self.status_label)
+                    self.style().polish(self.status_label)
+                
+            except ValueError as e:
+                logging.error(f"Invalid script name format: {full_script_name}")
+                self.drop_label.setText("Invalid script format")
     
     def load_template(self):
         if self.template_list.currentItem():
@@ -576,8 +689,29 @@ class ScenarioToolGUI(QMainWindow):
             logging.debug("Updating script list due to directory change")
             self.update_script_list()
         elif path.parent.name == "templates":
-            logging.debug("Updating template list due to directory change")
-            self.update_template_list()
+                self.status_label.setProperty("status", "error")
+                logging.error(f"Invalid script name format: {full_script_name}")
+
+class GUILogHandler(logging.Handler):
+    def __init__(self, log_widget):
+        super().__init__()
+        self.log_widget = log_widget
+        
+    def emit(self, record):
+        msg = self.format(record)
+        # Use different colors for different log levels
+        color = {
+            'DEBUG': 'gray',
+            'INFO': 'black',
+            'WARNING': 'orange',
+            'ERROR': 'red',
+            'CRITICAL': 'darkred'
+        }.get(record.levelname, 'black')
+        
+        self.log_widget.addItem(msg)
+        item = self.log_widget.item(self.log_widget.count() - 1)
+        item.setForeground(Qt.GlobalColor.red if 'ERROR' in msg else Qt.GlobalColor.black)
+        self.log_widget.scrollToBottom()
 
 def main():
     app = QApplication(sys.argv)

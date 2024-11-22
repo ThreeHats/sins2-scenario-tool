@@ -47,6 +47,7 @@ QLabel#dropLabel {
     border: 2px dashed #666;
     border-radius: 8px;
     padding: 20px;
+    margin-bottom: 18px;
     background: #f0f0f0;
     white-space: pre-line;  /* Allow \n to create new lines */
     color: #000000;
@@ -65,7 +66,30 @@ QLineEdit:focus {
     border: 1px solid #0d47a1;
 }
 
-QHBoxLayout {
+QBoxLayout {
     margin: 5px;
     spacing: 10px;
+}
+
+QLabel#statusLabel {
+    font-size: 14px;
+    padding: 8px;
+    border-radius: 4px;
+    margin: 5px;
+    min-height: 20px;
+}
+
+QLabel#statusLabel[status="running"] {
+    background-color: #1565c0;
+    color: white;
+}
+
+QLabel#statusLabel[status="success"] {
+    background-color: #2e7d32;
+    color: white;
+}
+
+QLabel#statusLabel[status="error"] {
+    background-color: #c62828;
+    color: white;
 }
