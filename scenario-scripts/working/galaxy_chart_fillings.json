@@ -1,0 +1,56 @@
+{
+    "version": 1,
+    "random_skybox_fillings": [
+        {
+            "name": "new_random_skybox",
+            "filling": {
+                "items": [
+                    {
+                        "skybox": "skybox_cloud_9",
+                        "probability": 25.0
+                    },
+                    {
+                        "skybox": "skybox_cloud_10",
+                        "probability": 25.0
+                    },
+                    {
+                        "skybox": "skybox_cloud_11",
+                        "probability": 25.0
+                    },
+                    {
+                        "skybox": "skybox_cloud_12",
+                        "probability": 25.0
+                    },
+                    {
+                        "skybox": "skybox_cloud_13",
+                        "probability": 25.0
+                    },
+                    {
+                        "skybox": "skybox_cloud_14",
+                        "probability": 25.0
+                    },
+                    {
+                        "skybox": "skybox_cloud_15",
+                        "probability": 25.0
+                    },
+                    {
+                        "skybox": "skybox_cloud_16",
+                        "probability": 25.0
+                    },
+                    {
+                        "skybox": "skybox_cloud_17",
+                        "probability": 25.0
+                    },
+                    {
+                        "skybox": "skybox_cloud_18",
+                        "probability": 25.0
+                    },
+                    {
+                        "skybox": "skybox_starfield",
+                        "probability": 25.0
+                    }
+                ]
+            }
+        }
+    ]
+}

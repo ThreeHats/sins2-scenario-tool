@@ -1,0 +1,9 @@
+{
+    "version": 1,
+    "name": ":One of Everything 0.1",
+    "description": ":One of Everything",
+    "desired_player_slots_configuration": {
+        "player_count": 10,
+        "team_count": 0
+    }
+}
