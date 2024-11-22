@@ -4,7 +4,7 @@ import zipfile
 import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QPushButton, QLabel, QListWidget, QFileDialog)
+                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit)
 from PyQt6.QtCore import Qt, QMimeData
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 
@@ -170,6 +170,45 @@ class ScenarioToolGUI(QMainWindow):
         layout.addWidget(QLabel('Available Templates:'))
         layout.addWidget(self.template_list)
         
+        # Add directory selection
+        dir_layout = QHBoxLayout()
+        dir_label = QLabel('Save Directory:')
+        self.dir_input = QLineEdit()
+        self.dir_input.setText(str(self.scenario_tool.output_dir))
+        self.dir_input.textChanged.connect(self.update_save_directory)
+        self.dir_select_btn = QPushButton('Browse...')
+        self.dir_select_btn.clicked.connect(self.select_directory)
+        
+        dir_layout.addWidget(dir_label)
+        dir_layout.addWidget(self.dir_input)
+        dir_layout.addWidget(self.dir_select_btn)
+        layout.addLayout(dir_layout)
+        
+        # Add name input
+        name_layout = QHBoxLayout()
+        name_label = QLabel('Scenario Name:')
+        self.name_input = QLineEdit()
+        name_layout.addWidget(name_label)
+        name_layout.addWidget(self.name_input)
+        layout.addLayout(name_layout)
+        
+        # Add directory buttons
+        dir_buttons_layout = QHBoxLayout()
+        
+        steam_btn = QPushButton('Use Steam Scenarios Folder')
+        steam_btn.clicked.connect(self.use_steam_directory)
+        
+        epic_btn = QPushButton('Use Epic Scenarios Folder')
+        epic_btn.clicked.connect(self.use_epic_directory)
+        
+        default_btn = QPushButton('Use Default Output')
+        default_btn.clicked.connect(self.use_default_directory)
+        
+        dir_buttons_layout.addWidget(steam_btn)
+        dir_buttons_layout.addWidget(epic_btn)
+        dir_buttons_layout.addWidget(default_btn)
+        layout.addLayout(dir_buttons_layout)
+        
         # Create buttons
         self.run_script_btn = QPushButton('Run Selected Script')
         self.run_script_btn.clicked.connect(self.run_script)
@@ -238,16 +277,17 @@ class ScenarioToolGUI(QMainWindow):
             self.save_scenario_btn.setEnabled(True)
     
     def save_scenario(self):
-        file_name, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save Scenario",
-            str(self.scenario_tool.output_dir),
-            "Scenario Files (*.scenario)"
-        )
-        if file_name:
-            output_name = Path(file_name).stem
-            if self.scenario_tool.create_scenario(output_name):
-                self.drop_label.setText('Scenario saved successfully!')
+        if not self.name_input.text():
+            self.drop_label.setText('Please enter a scenario name')
+            return
+        
+        output_path = self.scenario_tool.output_dir / f"{self.name_input.text()}.scenario"
+        if output_path.exists():
+            self.drop_label.setText('A scenario with this name already exists')
+            return
+        
+        if self.scenario_tool.create_scenario(self.name_input.text()):
+            self.drop_label.setText('Scenario saved successfully!')
     
     def update_script_list(self):
         """Update the list of available scripts based on current scenario type"""
@@ -258,6 +298,58 @@ class ScenarioToolGUI(QMainWindow):
                 for script_file in scripts_dir.glob("*.py"):
                     if script_file.stem != "__init__":
                         self.script_list.addItem(script_file.stem)
+    
+    def select_directory(self):
+        dir_name = QFileDialog.getExistingDirectory(
+            self,
+            "Select Save Directory",
+            str(self.scenario_tool.output_dir)
+        )
+        if dir_name:
+            self.dir_input.setText(dir_name)
+            self.update_save_directory()
+    
+    def update_save_directory(self):
+        new_dir = Path(self.dir_input.text())
+        try:
+            new_dir.mkdir(parents=True, exist_ok=True)
+            self.scenario_tool.output_dir = new_dir
+        except Exception as e:
+            print(f"Error updating save directory: {e}")
+    
+    def use_steam_directory(self):
+        steam_path = self.get_steam_scenarios_path()
+        if steam_path.exists():
+            self.dir_input.setText(str(steam_path))
+            self.update_save_directory()
+        else:
+            self.drop_label.setText('Steam scenarios folder not found')
+    
+    def get_steam_scenarios_path(self):
+        """Get the path to Steam's scenarios folder"""
+        return Path.home() / "AppData" / "Local" / "sins2" / "drop_in_scenarios"
+    
+    def get_epic_scenarios_path(self):
+        """Get the path to Epic's scenarios folder"""
+        # Check all drives from C to Z
+        for drive in (chr(i) + ':' for i in range(ord('C'), ord('Z')+1)):
+            epic_path = Path(f"{drive}/Program Files/Epic Games/SinsOfASolarEmpire2/drop_in_scenarios")
+            if epic_path.exists():
+                return epic_path
+        # Return default path if not found
+        return Path("C:/Program Files/Epic Games/SinsOfASolarEmpire2/drop_in_scenarios")
+    
+    def use_epic_directory(self):
+        epic_path = self.get_epic_scenarios_path()
+        if epic_path.exists():
+            self.dir_input.setText(str(epic_path))
+            self.update_save_directory()
+        else:
+            self.drop_label.setText('Epic scenarios folder not found')
+    
+    def use_default_directory(self):
+        self.dir_input.setText(str(Path("output")))
+        self.update_save_directory()
 
 def main():
     app = QApplication(sys.argv)

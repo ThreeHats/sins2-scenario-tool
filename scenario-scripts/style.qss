@@ -6,6 +6,7 @@ QMainWindow {
 QLabel {
     color: #ffffff;
     font-size: 14px;
+    min-width: 100px;
 }
 
 QPushButton {
@@ -49,4 +50,22 @@ QLabel#dropLabel {
     background: #f0f0f0;
     white-space: pre-line;  /* Allow \n to create new lines */
     color: #000000;
+}
+
+QLineEdit {
+    background-color: #3b3b3b;
+    color: #ffffff;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 5px;
+    font-size: 14px;
+}
+
+QLineEdit:focus {
+    border: 1px solid #0d47a1;
+}
+
+QHBoxLayout {
+    margin: 5px;
+    spacing: 10px;
 }
