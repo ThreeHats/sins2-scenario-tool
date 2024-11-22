@@ -2,6 +2,8 @@
 
 A tool for managing and modifying Sins of a Solar Empire 2 scenarios.
 
+![screenshot](https://github.com/JustAnotherIdea/sins2-community-tools/blob/main/images/image.png?raw=true)
+
 ## Features
 
 - **Scenario Management**
