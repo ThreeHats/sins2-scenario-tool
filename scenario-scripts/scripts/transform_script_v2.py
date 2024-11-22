@@ -155,7 +155,19 @@ def process_root_nodes():
     # Set the root_nodes to only contain the first node
     modified_chart['root_nodes'] = [first_root_node]
 
-process_root_nodes()
+def transform_scenario(working_dir):
+    """Transform the scenario files in the working directory"""
+    # Load the galaxy chart
+    galaxy_chart_path = working_dir / "galaxy_chart.json"
+    galaxy_chart = load_json(galaxy_chart_path)
+    
+    # Create modified chart
+    modified_chart = copy.deepcopy(galaxy_chart)
+    
+    # ... (keep existing transformation logic) ...
+    
+    # Save the modified chart back to working directory
+    save_json(modified_chart, galaxy_chart_path)
 
-# Save modified JSON
-save_json(modified_chart, new_json_file)
+# Keep the helper functions but remove the direct execution code
+# Remove the original file paths and main execution

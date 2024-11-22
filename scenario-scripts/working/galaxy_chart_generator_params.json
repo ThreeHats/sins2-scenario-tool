@@ -1,0 +1,1294 @@
+{
+    "version": 1,
+    "skybox": "skybox_random",
+    "player_home_planet": {
+        "filling_name": "player_home_planet",
+        "solar_system_radius_range": [0.40, 0.80],
+        "chance_of_first_planet_bonus": 0.0,
+        "chance_of_second_planet_bonus": 0.0
+    },
+    "solar_systems": [
+        {
+            "radius": 4000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [10, 10]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_uncolonizable_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [14, 14]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_dead_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [12, 12]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_barren_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [5, 5]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet",
+                        "solar_system_radius_range": [0.10, 0.10]
+                    },
+                    "count": [6, 6]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_poor_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [6, 6]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [5, 5]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid_line_cluster",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [10, 10]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid_point_line_cluster",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [10, 10]
+                }
+            ],
+            "max_player_count": 0
+        },
+        {
+            "radius": 1000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "player_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_crystalline_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_desert_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ferrous_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_gas_giant_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_greenhouse_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_moon_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_oceanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet_near_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_swamp_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_terran_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                }
+            ],
+            "max_player_count": 1
+        },
+        {
+            "radius": 1000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "player_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_crystalline_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_desert_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ferrous_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_gas_giant_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_greenhouse_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_moon_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_oceanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet_near_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_swamp_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_terran_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                }
+            ],
+            "max_player_count": 1
+        },
+        {
+            "radius": 1000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "player_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_crystalline_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_desert_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ferrous_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_gas_giant_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_greenhouse_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_moon_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_oceanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet_near_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_swamp_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_terran_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                }
+            ],
+            "max_player_count": 1
+        },
+        {
+            "radius": 1000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "player_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_crystalline_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_desert_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ferrous_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_gas_giant_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_greenhouse_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_moon_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_oceanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet_near_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_swamp_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_terran_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                }
+            ],
+            "max_player_count": 1
+        },
+        {
+            "radius": 1000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "player_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_crystalline_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_desert_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ferrous_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_gas_giant_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_greenhouse_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_moon_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_oceanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet_near_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_swamp_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_terran_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                }
+            ],
+            "max_player_count": 1
+        },
+        {
+            "radius": 1000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "player_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_crystalline_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_desert_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ferrous_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_gas_giant_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_greenhouse_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_moon_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_oceanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet_near_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_swamp_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_terran_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                }
+            ],
+            "max_player_count": 1
+        },
+        {
+            "radius": 1000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "player_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_crystalline_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_desert_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ferrous_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_gas_giant_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_greenhouse_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_moon_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_oceanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet_near_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_swamp_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_terran_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                }
+            ],
+            "max_player_count": 1
+        },
+        {
+            "radius": 1000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "player_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_crystalline_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_desert_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ferrous_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_gas_giant_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_greenhouse_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_moon_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_oceanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet_near_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_swamp_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_terran_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                }
+            ],
+            "max_player_count": 1
+        },
+        {
+            "radius": 1000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "player_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_crystalline_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_desert_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ferrous_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_gas_giant_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_greenhouse_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_moon_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_oceanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet_near_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_swamp_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_terran_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                }
+            ],
+            "max_player_count": 1
+        },
+        {
+            "radius": 1000.0,
+            "star": {
+                "filling_name": "random_star"
+            },
+            "planet_ranges": [
+                {
+                    "planet": {
+                        "filling_name": "player_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_asteroid",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_crystalline_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_desert_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ferrous_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_gas_giant_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_greenhouse_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_ice_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_moon_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_oceanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_rich_planet_near_home_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_swamp_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_terran_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "random_volcanic_planet",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                },
+                {
+                    "planet": {
+                        "filling_name": "wormhole_fixture",
+                        "solar_system_radius_range": [0.10, 1.0]
+                    },
+                    "count": [1, 1]
+                }
+            ],
+            "max_player_count": 1
+        }
+    ]
+}

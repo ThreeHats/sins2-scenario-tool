@@ -13,9 +13,10 @@ class ScenarioTool:
         self.working_dir = Path("working")
         self.output_dir = Path("output")
         self.templates_dir = Path("templates")
+        self.scripts_dir = Path("scripts")
         
         # Ensure necessary directories exist
-        for directory in [self.working_dir, self.output_dir, self.templates_dir]:
+        for directory in [self.working_dir, self.output_dir, self.templates_dir, self.scripts_dir]:
             directory.mkdir(exist_ok=True)
         
         # Expected files in a scenario
@@ -57,8 +58,36 @@ class ScenarioTool:
     
     def apply_script(self, script_name: str) -> bool:
         """Apply a predefined modification script to the working files"""
-        # This would be implemented based on your specific modification needs
-        pass
+        try:
+            # Import the script module dynamically
+            script_path = self.scripts_dir / f"{script_name}.py"
+            if not script_path.exists():
+                print(f"Script not found: {script_path}")
+                return False
+            
+            # Get the working directory files
+            galaxy_chart_path = self.working_dir / "galaxy_chart.json"
+            if not galaxy_chart_path.exists():
+                print("No galaxy_chart.json found in working directory")
+                return False
+            
+            # Load the script as a module and run it
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(script_name, script_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            
+            # Run the transformation
+            if hasattr(module, 'transform_scenario'):
+                module.transform_scenario(self.working_dir)
+                return True
+            else:
+                print(f"Script {script_name} does not have a transform_scenario function")
+                return False
+            
+        except Exception as e:
+            print(f"Error applying script: {e}")
+            return False
     
     def load_template(self, template_name: str) -> bool:
         """Load a predefined template into working directory"""
@@ -108,7 +137,7 @@ class ScenarioToolGUI(QMainWindow):
         
         # Create script list
         self.script_list = QListWidget()
-        self.script_list.addItems(['Script 1', 'Script 2', 'Script 3'])  # Placeholder scripts
+        self.update_script_list()
         layout.addWidget(QLabel('Available Scripts:'))
         layout.addWidget(self.script_list)
         
@@ -219,6 +248,15 @@ class ScenarioToolGUI(QMainWindow):
             output_name = Path(file_name).stem
             if self.scenario_tool.create_scenario(output_name):
                 self.drop_label.setText('Scenario saved successfully!')
+    
+    def update_script_list(self):
+        """Update the list of available scripts"""
+        self.script_list.clear()
+        scripts_dir = Path("scripts")
+        if scripts_dir.exists():
+            for script_file in scripts_dir.glob("*.py"):
+                if script_file.stem != "__init__":
+                    self.script_list.addItem(script_file.stem)
 
 def main():
     app = QApplication(sys.argv)
