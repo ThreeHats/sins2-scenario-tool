@@ -152,7 +152,7 @@ class ScenarioToolGUI(QMainWindow):
         layout = QVBoxLayout(central_widget)
         
         # Create drop area
-        self.drop_label = QLabel('Drop .scenario file here')
+        self.drop_label = QLabel('Drop .scenario file here\nNo file loaded')
         self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.drop_label.setStyleSheet("""
             QLabel {
@@ -160,6 +160,7 @@ class ScenarioToolGUI(QMainWindow):
                 border-radius: 8px;
                 padding: 20px;
                 background: #f0f0f0;
+                white-space: pre-line;  /* Allow \n to create new lines */
             }
         """)
         self.drop_label.setMinimumHeight(100)
@@ -252,7 +253,8 @@ class ScenarioToolGUI(QMainWindow):
     
     def handle_scenario_file(self, file_path: Path):
         if self.scenario_tool.extract_scenario(file_path):
-            self.drop_label.setText(f'Loaded: {file_path.name}')
+            scenario_type = self.scenario_tool.current_type.capitalize()
+            self.drop_label.setText(f'Loaded: {file_path.name}\nType: {scenario_type} Scenario')
             # Enable buttons
             self.run_script_btn.setEnabled(True)
             self.save_scenario_btn.setEnabled(True)
