@@ -59,10 +59,11 @@ class ScenarioTool:
         
         # Expected files in a scenario
         self.required_files = [
-            "galaxy_chart.json",
             "galaxy_chart_fillings.json",
             "scenario_info.json"
         ]
+
+        # ToDo: require galaxy_chart_generator_params.json for generator scenarios and galaxy_chart.json for chart scenarios
         
         self.current_type = None  # Will store 'chart' or 'generator'
     
@@ -165,17 +166,41 @@ class ScenarioTool:
             
         try:
             output_path = self.output_dir / f"{output_name}.scenario"
+            
+            # Define required files based on scenario type
+            required_files = [
+                "galaxy_chart_fillings.json",
+                "scenario_info.json"
+            ]
+            
+            # Add type-specific required file
+            if self.current_type == 'generator':
+                required_files.append("galaxy_chart_generator_params.json")
+            elif self.current_type == 'chart':
+                required_files.append("galaxy_chart.json")
+            
+            logging.debug(f"Creating {self.current_type} scenario with required files: {required_files}")
+            
             with zipfile.ZipFile(output_path, 'w') as zip_ref:
-                for file in self.required_files:
+                missing_files = []
+                for file in required_files:
                     file_path = source_dir / file
                     if file_path.exists():
                         zip_ref.write(file_path, file)
+                        logging.debug(f"Added file to scenario: {file}")
                     else:
-                        print(f"Missing required file: {file}")
-                        return False
+                        missing_files.append(file)
+                        logging.error(f"Missing required file: {file}")
+                
+                if missing_files:
+                    logging.error(f"Failed to create scenario due to missing files: {missing_files}")
+                    return False
+                
+            logging.info(f"Successfully created scenario at: {output_path}")
             return True
+            
         except Exception as e:
-            print(f"Error creating scenario: {e}")
+            logging.error(f"Error creating scenario: {str(e)}", exc_info=True)
             return False
     
     def load_template(self, template_name: str, source: str = 'user', expected_type: str = None) -> tuple[bool, str]:
@@ -685,12 +710,13 @@ class ScenarioToolGUI(QMainWindow):
         """Handle changes in watched directories"""
         path = Path(path)
         logging.debug(f"Directory changed: {path}")
+        
         if path.parent.name == "scripts":
             logging.debug("Updating script list due to directory change")
             self.update_script_list()
         elif path.parent.name == "templates":
-                self.status_label.setProperty("status", "error")
-                logging.error(f"Invalid script name format: {full_script_name}")
+            logging.debug("Updating template list due to directory change")
+            self.update_template_list()
 
 class GUILogHandler(logging.Handler):
     def __init__(self, log_widget):
