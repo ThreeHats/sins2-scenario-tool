@@ -10,14 +10,23 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 
 class ScenarioTool:
     def __init__(self):
-        self.working_dir = Path("working")
+        # Base directories
         self.output_dir = Path("output")
         self.templates_dir = Path("templates")
-        self.scripts_dir = Path("scripts")
         
-        # Ensure necessary directories exist
-        for directory in [self.working_dir, self.output_dir, self.templates_dir, self.scripts_dir]:
-            directory.mkdir(exist_ok=True)
+        # Separate working and script directories for each type
+        self.working_dirs = {
+            'chart': Path("working/chart"),
+            'generator': Path("working/generator")
+        }
+        self.script_dirs = {
+            'chart': Path("scripts/chart"),
+            'generator': Path("scripts/generator")
+        }
+        
+        # Create all necessary directories
+        for directory in [self.output_dir, self.templates_dir, *self.working_dirs.values(), *self.script_dirs.values()]:
+            directory.mkdir(parents=True, exist_ok=True)
         
         # Expected files in a scenario
         self.required_files = [
@@ -25,21 +34,75 @@ class ScenarioTool:
             "galaxy_chart_fillings.json",
             "scenario_info.json"
         ]
+        
+        self.current_type = None  # Will store 'chart' or 'generator'
+    
+    def determine_scenario_type(self, scenario_path: Path) -> str:
+        """Determine if this is a chart or generator scenario"""
+        with zipfile.ZipFile(scenario_path, 'r') as zip_ref:
+            files = zip_ref.namelist()
+            if "galaxy_chart_generator_params.json" in files:
+                return 'generator'
+            elif "galaxy_chart.json" in files:
+                return 'chart'
+        return None
     
     def extract_scenario(self, scenario_path: Path) -> bool:
-        """Extract .scenario file (zip) contents to working directory"""
+        """Extract .scenario file to appropriate working directory"""
         try:
+            # Determine scenario type
+            self.current_type = self.determine_scenario_type(scenario_path)
+            if not self.current_type:
+                print("Unknown scenario type")
+                return False
+            
+            # Clear working directory
+            working_dir = self.working_dirs[self.current_type]
+            for file in working_dir.glob("*"):
+                file.unlink()
+            
+            # Extract files
             with zipfile.ZipFile(scenario_path, 'r') as zip_ref:
-                zip_ref.extractall(self.working_dir)
+                zip_ref.extractall(working_dir)
+            
             return True
         except Exception as e:
             print(f"Error extracting scenario: {e}")
             return False
     
+    def apply_script(self, script_name: str) -> bool:
+        """Apply a script from the appropriate directory"""
+        if not self.current_type:
+            print("No scenario loaded")
+            return False
+            
+        try:
+            script_path = self.script_dirs[self.current_type] / f"{script_name}.py"
+            if not script_path.exists():
+                print(f"Script not found: {script_path}")
+                return False
+            
+            # Import and run the script
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(script_name, script_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            
+            if hasattr(module, 'transform_scenario'):
+                module.transform_scenario(self.working_dirs[self.current_type])
+                return True
+            else:
+                print(f"Script {script_name} does not have a transform_scenario function")
+                return False
+            
+        except Exception as e:
+            print(f"Error applying script: {e}")
+            return False
+    
     def create_scenario(self, output_name: str, source_dir: Path = None) -> bool:
         """Create .scenario file from json files"""
         if source_dir is None:
-            source_dir = self.working_dir
+            source_dir = self.working_dirs[self.current_type]
             
         try:
             output_path = self.output_dir / f"{output_name}.scenario"
@@ -56,39 +119,6 @@ class ScenarioTool:
             print(f"Error creating scenario: {e}")
             return False
     
-    def apply_script(self, script_name: str) -> bool:
-        """Apply a predefined modification script to the working files"""
-        try:
-            # Import the script module dynamically
-            script_path = self.scripts_dir / f"{script_name}.py"
-            if not script_path.exists():
-                print(f"Script not found: {script_path}")
-                return False
-            
-            # Get the working directory files
-            galaxy_chart_path = self.working_dir / "galaxy_chart.json"
-            if not galaxy_chart_path.exists():
-                print("No galaxy_chart.json found in working directory")
-                return False
-            
-            # Load the script as a module and run it
-            import importlib.util
-            spec = importlib.util.spec_from_file_location(script_name, script_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            
-            # Run the transformation
-            if hasattr(module, 'transform_scenario'):
-                module.transform_scenario(self.working_dir)
-                return True
-            else:
-                print(f"Script {script_name} does not have a transform_scenario function")
-                return False
-            
-        except Exception as e:
-            print(f"Error applying script: {e}")
-            return False
-    
     def load_template(self, template_name: str) -> bool:
         """Load a predefined template into working directory"""
         template_dir = self.templates_dir / template_name
@@ -100,7 +130,7 @@ class ScenarioTool:
             for file in self.required_files:
                 source = template_dir / file
                 if source.exists():
-                    shutil.copy2(source, self.working_dir / file)
+                    shutil.copy2(source, self.working_dirs[self.current_type] / file)
             return True
         except Exception as e:
             print(f"Error loading template: {e}")
@@ -150,6 +180,7 @@ class ScenarioToolGUI(QMainWindow):
         # Create buttons
         self.run_script_btn = QPushButton('Run Selected Script')
         self.run_script_btn.clicked.connect(self.run_script)
+        self.run_script_btn.setEnabled(False)  # Initially disabled
         layout.addWidget(self.run_script_btn)
         
         self.load_template_btn = QPushButton('Load Selected Template')
@@ -158,6 +189,7 @@ class ScenarioToolGUI(QMainWindow):
         
         self.save_scenario_btn = QPushButton('Save Scenario')
         self.save_scenario_btn.clicked.connect(self.save_scenario)
+        self.save_scenario_btn.setEnabled(False)  # Initially disabled
         layout.addWidget(self.save_scenario_btn)
         
         # Enable drop events
@@ -224,6 +256,8 @@ class ScenarioToolGUI(QMainWindow):
             # Enable buttons
             self.run_script_btn.setEnabled(True)
             self.save_scenario_btn.setEnabled(True)
+            # Update script list based on scenario type
+            self.update_script_list()
     
     def run_script(self):
         if self.script_list.currentItem():
@@ -250,13 +284,14 @@ class ScenarioToolGUI(QMainWindow):
                 self.drop_label.setText('Scenario saved successfully!')
     
     def update_script_list(self):
-        """Update the list of available scripts"""
+        """Update the list of available scripts based on current scenario type"""
         self.script_list.clear()
-        scripts_dir = Path("scripts")
-        if scripts_dir.exists():
-            for script_file in scripts_dir.glob("*.py"):
-                if script_file.stem != "__init__":
-                    self.script_list.addItem(script_file.stem)
+        if self.scenario_tool.current_type:
+            scripts_dir = self.scenario_tool.script_dirs[self.scenario_tool.current_type]
+            if scripts_dir.exists():
+                for script_file in scripts_dir.glob("*.py"):
+                    if script_file.stem != "__init__":
+                        self.script_list.addItem(script_file.stem)
 
 def main():
     app = QApplication(sys.argv)

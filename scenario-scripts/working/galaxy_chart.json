@@ -4,7 +4,7 @@
     "root_nodes": [
         {
             "id": 0,
-            "filling_name": "random_black_hole_star",
+            "filling_name": "random_star",
             "position": [
                 0.0,
                 0.0
