@@ -925,22 +925,29 @@ class GalaxyViewer(QWidget):
         self.dragging = False
         self.last_pos = None
         self.node_positions = {}  # Cache for node positions
+        self.parent_child_connections = []  # Cache for parent-child connections
         
     def set_data(self, data):
         self.data = data
-        # Pre-calculate node positions when data is set
         self.node_positions.clear()
+        self.parent_child_connections.clear()
         if self.data and 'root_nodes' in self.data:
             self._collect_node_positions()
         self.update()
         
     def _collect_node_positions(self):
         def collect_positions(node):
-            self.node_positions[node['id']] = QPointF(node['position'][0], -node['position'][1])
-            if 'child_nodes' in node:
-                for child in node['child_nodes']:
-                    collect_positions(child)
+            if 'id' in node and 'position' in node:
+                self.node_positions[node['id']] = QPointF(node['position'][0], -node['position'][1])
+                if 'child_nodes' in node:
+                    for child in node['child_nodes']:
+                        if 'id' in child and 'position' in child:
+                            # Store parent-child connection
+                            self.parent_child_connections.append((node['id'], child['id']))
+                        collect_positions(child)
         
+        self.node_positions.clear()
+        self.parent_child_connections.clear()
         for node in self.data['root_nodes']:
             collect_positions(node)
         logging.debug(f"Collected positions for {len(self.node_positions)} nodes")
@@ -962,8 +969,7 @@ class GalaxyViewer(QWidget):
             self.draw_grid(painter)
             
             # Draw phase lanes
-            if 'phase_lanes' in self.data:
-                self.draw_phase_lanes(painter)
+            self.draw_phase_lanes(painter)
             
             # Draw nodes
             self.draw_nodes(painter)
@@ -972,23 +978,31 @@ class GalaxyViewer(QWidget):
             painter.end()
     
     def draw_phase_lanes(self, painter):
-        for line in self.data['phase_lanes']:
-            node_a_pos = self.node_positions.get(line['node_a'])
-            node_b_pos = self.node_positions.get(line['node_b'])
-            
-            if node_a_pos and node_b_pos:
-                # Set line style based on type
-                if 'type' in line:
-                    if line['type'] == 'star':
-                        painter.setPen(QPen(QColor(255, 255, 0), 1/self.zoom))  # Yellow for star connections
-                    elif line['type'] == 'wormhole':
-                        painter.setPen(QPen(QColor(128, 0, 128), 2/self.zoom))  # Purple for wormholes
+        # Draw parent-child connections first
+        painter.setPen(QPen(QColor(255, 255, 0), 1/self.zoom))  # Yellow for parent-child
+        for parent_id, child_id in self.parent_child_connections:
+            parent_pos = self.node_positions.get(parent_id)
+            child_pos = self.node_positions.get(child_id)
+            if parent_pos and child_pos:
+                painter.drawLine(parent_pos, child_pos)
+        
+        # Then draw phase lanes
+        if 'phase_lanes' in self.data:
+            for line in self.data['phase_lanes']:
+                node_a_pos = self.node_positions.get(line['node_a'])
+                node_b_pos = self.node_positions.get(line['node_b'])
+                
+                if node_a_pos and node_b_pos:
+                    # Set line style based on type
+                    if 'type' in line:
+                        if line['type'] == 'wormhole':
+                            painter.setPen(QPen(QColor(128, 0, 128), 2/self.zoom))  # Purple for wormholes
+                        else:
+                            painter.setPen(QPen(QColor(0, 0, 255), 1/self.zoom))  # Blue for default
                     else:
-                        painter.setPen(QColor(0, 0, 255), 1/self.zoom)  # Blue for default
-                else:
-                    painter.setPen(QPen(QColor(0, 0, 255), 1/self.zoom))  # Blue for default
+                        painter.setPen(QPen(QColor(0, 0, 255), 1/self.zoom))  # Blue for default
                     
-                painter.drawLine(node_a_pos, node_b_pos)
+                    painter.drawLine(node_a_pos, node_b_pos)
     
     def draw_grid(self, painter):
         # Draw coordinate grid
