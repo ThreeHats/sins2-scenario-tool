@@ -5,8 +5,8 @@ import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox)
-from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBrush
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
 import logging
 import time
@@ -464,6 +464,26 @@ class ScenarioToolGUI(QMainWindow):
         operation_layout.addWidget(self.apply_operation_btn)
 
         layout.addWidget(operation_group)
+        
+        # Create horizontal split for main content
+        main_layout = QHBoxLayout()
+        
+        # Left side (existing controls)
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        
+        # Move existing widgets to left layout
+        # ... (move all existing widget additions to left_layout) ...
+        
+        # Right side (galaxy viewer)
+        self.galaxy_viewer = GalaxyViewer()
+        
+        # Add both sides to main layout
+        main_layout.addWidget(left_widget)
+        main_layout.addWidget(self.galaxy_viewer)
+        
+        # Add main layout to central widget
+        layout.addLayout(main_layout)
     
     def update_run_button_state(self):
         """Enable run button only when a script is selected and a scenario is loaded"""
@@ -518,6 +538,16 @@ class ScenarioToolGUI(QMainWindow):
         except Exception as e:
             self.drop_label.setText(f'Error: {str(e)}')
             logging.error(f"Error loading scenario: {str(e)}", exc_info=True)
+        
+        # Update galaxy viewer if this is a chart scenario
+        if self.scenario_tool.current_type == 'chart':
+            try:
+                chart_path = self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json"
+                with open(chart_path) as f:
+                    chart_data = json.load(f)
+                self.galaxy_viewer.set_data(chart_data)
+            except Exception as e:
+                logging.error(f"Error loading galaxy chart data: {e}")
     
     def run_script(self):
         if self.script_list.currentItem():
@@ -884,6 +914,164 @@ class GUILogHandler(logging.Handler):
         item = self.log_widget.item(self.log_widget.count() - 1)
         item.setForeground(Qt.GlobalColor.red if 'ERROR' in msg else Qt.GlobalColor.black)
         self.log_widget.scrollToBottom()
+
+class GalaxyViewer(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.data = None
+        self.setMinimumSize(400, 400)
+        self.zoom = 0.01
+        self.center_offset = QPointF(0, 0)
+        self.dragging = False
+        self.last_pos = None
+        self.node_positions = {}  # Cache for node positions
+        
+    def set_data(self, data):
+        self.data = data
+        # Pre-calculate node positions when data is set
+        self.node_positions.clear()
+        if self.data and 'root_nodes' in self.data:
+            self._collect_node_positions()
+        self.update()
+        
+    def _collect_node_positions(self):
+        def collect_positions(node):
+            self.node_positions[node['id']] = QPointF(node['position'][0], -node['position'][1])
+            if 'child_nodes' in node:
+                for child in node['child_nodes']:
+                    collect_positions(child)
+        
+        for node in self.data['root_nodes']:
+            collect_positions(node)
+        logging.debug(f"Collected positions for {len(self.node_positions)} nodes")
+    
+    def paintEvent(self, event):
+        if not self.data:
+            return
+            
+        painter = QPainter(self)
+        try:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            
+            # Set up the coordinate system
+            painter.translate(self.width() / 2 + self.center_offset.x(),
+                            self.height() / 2 + self.center_offset.y())
+            painter.scale(self.zoom, self.zoom)
+            
+            # Draw grid
+            self.draw_grid(painter)
+            
+            # Draw phase lanes
+            if 'phase_lanes' in self.data:
+                self.draw_phase_lanes(painter)
+            
+            # Draw nodes
+            self.draw_nodes(painter)
+            
+        finally:
+            painter.end()
+    
+    def draw_phase_lanes(self, painter):
+        for line in self.data['phase_lanes']:
+            node_a_pos = self.node_positions.get(line['node_a'])
+            node_b_pos = self.node_positions.get(line['node_b'])
+            
+            if node_a_pos and node_b_pos:
+                # Set line style based on type
+                if 'type' in line:
+                    if line['type'] == 'star':
+                        painter.setPen(QPen(QColor(255, 255, 0), 1/self.zoom))  # Yellow for star connections
+                    elif line['type'] == 'wormhole':
+                        painter.setPen(QPen(QColor(128, 0, 128), 2/self.zoom))  # Purple for wormholes
+                    else:
+                        painter.setPen(QColor(0, 0, 255), 1/self.zoom)  # Blue for default
+                else:
+                    painter.setPen(QPen(QColor(0, 0, 255), 1/self.zoom))  # Blue for default
+                    
+                painter.drawLine(node_a_pos, node_b_pos)
+    
+    def draw_grid(self, painter):
+        # Draw coordinate grid
+        grid_size = 1000  # Game units between grid lines
+        grid_count = 10   # Number of grid lines in each direction
+        
+        painter.setPen(QPen(QColor(200, 200, 200), 1/self.zoom))
+        
+        for i in range(-grid_count, grid_count + 1):
+            # Vertical lines
+            painter.drawLine(i * grid_size, -grid_count * grid_size,
+                           i * grid_size, grid_count * grid_size)
+            # Horizontal lines
+            painter.drawLine(-grid_count * grid_size, i * grid_size,
+                           grid_count * grid_size, i * grid_size)
+        
+        # Draw axes
+        painter.setPen(QPen(QColor(100, 100, 100), 2/self.zoom))
+        painter.drawLine(-grid_count * grid_size, 0, grid_count * grid_size, 0)
+        painter.drawLine(0, -grid_count * grid_size, 0, grid_count * grid_size)
+        
+    def draw_nodes(self, painter):
+        if 'root_nodes' not in self.data:
+            return
+        
+        # Create a flat list of all nodes first to avoid recursion issues
+        all_nodes = []
+        
+        def collect_nodes(node):
+            all_nodes.append(node)
+            if 'child_nodes' in node:
+                for child in node['child_nodes']:
+                    collect_nodes(child)
+        
+        # Collect all nodes
+        for node in self.data['root_nodes']:
+            collect_nodes(node)
+        
+        # Draw all nodes
+        for node in all_nodes:
+            pos = QPointF(node['position'][0], -node['position'][1])
+            
+            # Set node appearance based on type
+            node_size = 20  # Reduced base node size
+            if 'filling_name' in node:
+                if 'star' in node['filling_name']:
+                    color = QColor(255, 255, 0)  # Yellow for stars
+                    node_size = 40  # Slightly larger for stars
+                elif 'planet' in node['filling_name']:
+                    color = QColor(0, 255, 0)    # Green for planets
+                elif 'asteroid' in node['filling_name']:
+                    color = QColor(150, 150, 150) # Gray for asteroids
+                else:
+                    color = QColor(255, 255, 255) # White for others
+            else:
+                color = QColor(255, 255, 255)
+            
+            # Draw node
+            painter.setPen(QPen(color.darker(), 2/self.zoom))
+            painter.setBrush(QBrush(color))
+            painter.drawEllipse(pos, node_size/self.zoom, node_size/self.zoom)
+    
+    def wheelEvent(self, event):
+        # Zoom in/out with mouse wheel
+        factor = 1.2 if event.angleDelta().y() > 0 else 1/1.2
+        self.zoom *= factor
+        self.update()
+    
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.dragging = True
+            self.last_pos = event.pos()
+    
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.dragging = False
+    
+    def mouseMoveEvent(self, event):
+        if self.dragging and self.last_pos:
+            delta = event.pos() - self.last_pos
+            self.center_offset += QPointF(delta.x(), delta.y())
+            self.last_pos = event.pos()
+            self.update()
 
 def main():
     app = QApplication(sys.argv)
