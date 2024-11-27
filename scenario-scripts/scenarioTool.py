@@ -4,9 +4,10 @@ import zipfile
 import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy)
+                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox)
 from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
 import logging
 import time
 
@@ -422,6 +423,47 @@ class ScenarioToolGUI(QMainWindow):
         
         # Enable run button when script is selected
         self.script_list.itemSelectionChanged.connect(self.update_run_button_state)
+        
+        # Operation Controls
+        operation_group = QWidget()
+        operation_layout = QVBoxLayout(operation_group)
+
+        # Operation line (e.g., "Add '2' to 'chance_of_loot'")
+        operation_line = QHBoxLayout()
+        self.operation_combo = QComboBox()
+        self.operation_combo.addItems([op.value for op in Operation])
+        self.operation_value = QLineEdit()
+        self.operation_value.setPlaceholderText("value")
+        operation_line.addWidget(self.operation_combo)
+        operation_line.addWidget(QLabel("'"))
+        operation_line.addWidget(self.operation_value)
+        operation_line.addWidget(QLabel("' to"))
+        self.target_property = QLineEdit()
+        self.target_property.setPlaceholderText("target property")
+        operation_line.addWidget(self.target_property)
+        operation_layout.addLayout(operation_line)
+
+        # WHERE line (e.g., "WHERE 'filling_name' equals 'random_star'")
+        where_line = QHBoxLayout()
+        where_line.addWidget(QLabel("WHERE"))
+        self.filter_property = QLineEdit()
+        self.filter_property.setPlaceholderText("property")
+        self.comparison_combo = QComboBox()
+        self.comparison_combo.addItems([comp.value for comp in Comparison])
+        self.filter_value = QLineEdit()
+        self.filter_value.setPlaceholderText("value")
+        where_line.addWidget(self.filter_property)
+        where_line.addWidget(self.comparison_combo)
+        where_line.addWidget(self.filter_value)
+        operation_layout.addLayout(where_line)
+
+        # Apply button
+        self.apply_operation_btn = QPushButton("Apply Operation")
+        self.apply_operation_btn.clicked.connect(self.apply_operation)
+        self.apply_operation_btn.setEnabled(False)  # Initially disabled
+        operation_layout.addWidget(self.apply_operation_btn)
+
+        layout.addWidget(operation_group)
     
     def update_run_button_state(self):
         """Enable run button only when a script is selected and a scenario is loaded"""
@@ -455,15 +497,27 @@ class ScenarioToolGUI(QMainWindow):
                 break
     
     def handle_scenario_file(self, file_path: Path):
-        if self.scenario_tool.extract_scenario(file_path):
-            scenario_type = self.scenario_tool.current_type.capitalize()
-            self.drop_label.setText(f'Loaded: {file_path.name}\nType: {scenario_type} Scenario')
-            # Enable buttons
-            self.run_script_btn.setEnabled(True)
-            self.save_scenario_btn.setEnabled(True)
-            # Update script list based on scenario type
-            self.update_script_list()
-            self.update_template_list()
+        try:
+            if self.scenario_tool.extract_scenario(file_path):
+                scenario_type = self.scenario_tool.current_type.capitalize()
+                self.drop_label.setText(f'Loaded: {file_path.name}\nType: {scenario_type} Scenario')
+                
+                # Enable buttons
+                self.run_script_btn.setEnabled(True)
+                self.save_scenario_btn.setEnabled(True)
+                self.apply_operation_btn.setEnabled(True)  # Make sure this line is present
+                
+                # Update lists
+                self.update_script_list()
+                self.update_template_list()
+                
+                logging.info(f"Successfully loaded scenario: {file_path}")
+            else:
+                self.drop_label.setText('Error loading scenario')
+                logging.error(f"Failed to load scenario: {file_path}")
+        except Exception as e:
+            self.drop_label.setText(f'Error: {str(e)}')
+            logging.error(f"Error loading scenario: {str(e)}", exc_info=True)
     
     def run_script(self):
         if self.script_list.currentItem():
@@ -717,6 +771,98 @@ class ScenarioToolGUI(QMainWindow):
         elif path.parent.name == "templates":
             logging.debug("Updating template list due to directory change")
             self.update_template_list()
+    
+    def apply_operation(self):
+        logging.info("Apply operation button clicked")
+        if not self.apply_operation_btn.isEnabled():
+            logging.warning("Apply operation button is disabled")
+            return
+        
+        try:
+            # Get filter parameters
+            property_name = self.filter_property.text()
+            logging.debug(f"Filter property: {property_name}")
+            
+            comparison = Comparison(self.comparison_combo.currentText())
+            logging.debug(f"Comparison: {comparison}")
+            
+            filter_value = self.filter_value.text()
+            logging.debug(f"Initial filter value: {filter_value}")
+            
+            # Convert value to appropriate type
+            try:
+                filter_value = float(filter_value)
+                logging.debug(f"Converted filter value to float: {filter_value}")
+            except ValueError:
+                logging.debug("Keeping filter value as string")
+                pass
+            
+            # Create filter
+            filter_group = FilterGroup([
+                Filter(property_name, comparison, filter_value)
+            ])
+            logging.debug("Created filter group")
+            
+            # Get operation parameters
+            operation = Operation(self.operation_combo.currentText())
+            logging.debug(f"Operation: {operation}")
+            
+            target_prop = self.target_property.text()
+            logging.debug(f"Target property: {target_prop}")
+            
+            # Get operation value
+            op_value = self.operation_value.text()
+            logging.debug(f"Initial operation value: {op_value}")
+            
+            try:
+                op_value = float(op_value)
+                logging.debug(f"Converted operation value to float: {op_value}")
+            except ValueError:
+                if operation not in [Operation.REMOVE, Operation.CHANGE]:
+                    self.drop_label.setText("Operation value must be a number")
+                    logging.error("Operation value must be a number for this operation type")
+                    return
+                logging.debug("Keeping operation value as string")
+            
+            # Check if scenario is loaded
+            if not self.scenario_tool.current_type:
+                self.drop_label.setText("Please load a scenario first")
+                logging.error("No scenario loaded")
+                return
+            
+            # Load the appropriate file based on scenario type
+            if self.scenario_tool.current_type == 'chart':
+                file_path = self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json"
+            else:
+                file_path = self.scenario_tool.working_dirs['generator'] / "galaxy_chart_generator_params.json"
+            
+            logging.debug(f"Using file path: {file_path}")
+            
+            # Load, modify and save the file
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                logging.debug("Successfully loaded JSON data")
+            
+            from scenarioOperations import apply_operation as apply_op
+            modified_data = apply_op(
+                data=data,
+                operation=operation,
+                target_property=target_prop,
+                filter_group=filter_group,
+                value=op_value
+            )
+            logging.debug("Successfully applied operation")
+            
+            with open(file_path, 'w') as f:
+                json.dump(modified_data, f, indent=4)
+                logging.debug("Successfully saved modified data")
+            
+            self.drop_label.setText("Operation applied successfully!")
+            logging.info("Operation completed successfully")
+            
+        except Exception as e:
+            self.drop_label.setText(f"Error applying operation: {str(e)}")
+            logging.error(f"Error applying operation: {str(e)}", exc_info=True)
 
 class GUILogHandler(logging.Handler):
     def __init__(self, log_widget):
