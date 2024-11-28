@@ -303,6 +303,7 @@ class ScenarioToolGUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("Scenario Tool")
         self.scenario_tool = ScenarioTool()
+        self.where_clauses = []  # Initialize the where_clauses list
         self.init_ui()
         self.setup_file_watchers()
         self.update_template_list()
@@ -428,39 +429,37 @@ class ScenarioToolGUI(QMainWindow):
         operation_group = QWidget()
         operation_layout = QVBoxLayout(operation_group)
 
-        # Operation line (e.g., "Add '2' to 'chance_of_loot'")
+        # Operation line
         operation_line = QHBoxLayout()
         self.operation_combo = QComboBox()
         self.operation_combo.addItems([op.value for op in Operation])
-        self.operation_value = QLineEdit()
-        self.operation_value.setPlaceholderText("value")
-        operation_line.addWidget(self.operation_combo)
-        operation_line.addWidget(QLabel("'"))
-        operation_line.addWidget(self.operation_value)
-        operation_line.addWidget(QLabel("' to"))
         self.target_property = QLineEdit()
-        self.target_property.setPlaceholderText("target property")
+        self.target_property.setPlaceholderText("property to change")
+        self.operation_value = QLineEdit()
+        self.operation_value.setPlaceholderText("new value")
+        
+        # Connect operation combo to update placeholders
+        self.operation_combo.currentTextChanged.connect(self.update_operation_placeholders)
+        
+        operation_line.addWidget(self.operation_combo)
         operation_line.addWidget(self.target_property)
+        operation_line.addWidget(QLabel("to"))
+        operation_line.addWidget(self.operation_value)
         operation_layout.addLayout(operation_line)
 
-        # WHERE line (e.g., "WHERE 'filling_name' equals 'random_star'")
-        where_line = QHBoxLayout()
-        where_line.addWidget(QLabel("WHERE"))
-        self.filter_property = QLineEdit()
-        self.filter_property.setPlaceholderText("property")
-        self.comparison_combo = QComboBox()
-        self.comparison_combo.addItems([comp.value for comp in Comparison])
-        self.filter_value = QLineEdit()
-        self.filter_value.setPlaceholderText("value")
-        where_line.addWidget(self.filter_property)
-        where_line.addWidget(self.comparison_combo)
-        where_line.addWidget(self.filter_value)
-        operation_layout.addLayout(where_line)
+        # WHERE clauses container
+        self.where_clauses_widget = QWidget()
+        self.where_clauses_layout = QVBoxLayout(self.where_clauses_widget)
+        operation_layout.addWidget(self.where_clauses_widget)
+
+        # Add WHERE clause button
+        add_where_btn = QPushButton("Add WHERE Clause")
+        add_where_btn.clicked.connect(self.add_where_clause)
+        operation_layout.addWidget(add_where_btn)
 
         # Apply button
         self.apply_operation_btn = QPushButton("Apply Operation")
         self.apply_operation_btn.clicked.connect(self.apply_operation)
-        self.apply_operation_btn.setEnabled(False)  # Initially disabled
         operation_layout.addWidget(self.apply_operation_btn)
 
         layout.addWidget(operation_group)
@@ -809,44 +808,32 @@ class ScenarioToolGUI(QMainWindow):
             return
         
         try:
-            # Get filter parameters
-            property_name = self.filter_property.text()
-            logging.debug(f"Filter property: {property_name}")
-            
-            comparison = Comparison(self.comparison_combo.currentText())
-            logging.debug(f"Comparison: {comparison}")
-            
-            filter_value = self.filter_value.text()
-            logging.debug(f"Initial filter value: {filter_value}")
-            
-            # Convert value to appropriate type
-            try:
-                filter_value = float(filter_value)
-                logging.debug(f"Converted filter value to float: {filter_value}")
-            except ValueError:
-                logging.debug("Keeping filter value as string")
-                pass
-            
-            # Create filter
-            filter_group = FilterGroup([
-                Filter(property_name, comparison, filter_value)
-            ])
-            logging.debug("Created filter group")
+            # Create filter group from WHERE clauses
+            filter_group = self.get_filter_group()
             
             # Get operation parameters
             operation = Operation(self.operation_combo.currentText())
             logging.debug(f"Operation: {operation}")
             
-            target_prop = self.target_property.text()
-            logging.debug(f"Target property: {target_prop}")
+            # For MOVE operation, target_property is the destination node ID
+            if operation == Operation.MOVE:
+                target_prop = self.operation_value.text()  # Use the value field as the target node ID
+                logging.debug(f"Target node ID for move: {target_prop}")
+            else:
+                target_prop = self.target_property.text()
+                logging.debug(f"Target property: {target_prop}")
             
-            # Get operation value
+            # Get operation value (not used for MOVE)
             op_value = self.operation_value.text()
             logging.debug(f"Initial operation value: {op_value}")
             
             try:
-                op_value = float(op_value)
-                logging.debug(f"Converted operation value to float: {op_value}")
+                if operation == Operation.MOVE:
+                    op_value = int(op_value)
+                    logging.debug(f"Using node ID: {op_value}")
+                elif operation not in [Operation.REMOVE, Operation.CHANGE, Operation.ADD_PROPERTY]:
+                    op_value = float(op_value)
+                    logging.debug(f"Converted operation value to float: {op_value}")
             except ValueError:
                 if operation not in [Operation.REMOVE, Operation.CHANGE]:
                     self.drop_label.setText("Operation value must be a number")
@@ -877,7 +864,7 @@ class ScenarioToolGUI(QMainWindow):
             modified_data = apply_op(
                 data=data,
                 operation=operation,
-                target_property=target_prop,
+                target_property=str(op_value) if operation == Operation.MOVE else target_prop,  # Convert node ID to string
                 filter_group=filter_group,
                 value=op_value
             )
@@ -893,6 +880,80 @@ class ScenarioToolGUI(QMainWindow):
         except Exception as e:
             self.drop_label.setText(f"Error applying operation: {str(e)}")
             logging.error(f"Error applying operation: {str(e)}", exc_info=True)
+    
+    def get_filter_group(self) -> FilterGroup:
+        """Create a FilterGroup from the current WHERE clauses"""
+        filters = []
+        for clause_widget in self.where_clauses:
+            # Get the input fields from the clause widget
+            property_input = clause_widget.findChild(QLineEdit, name="filter_property")
+            comparison_combo = clause_widget.findChild(QComboBox, name="comparison_combo")
+            value_input = clause_widget.findChild(QLineEdit, name="filter_value")
+
+            if property_input and comparison_combo and value_input:
+                property_name = property_input.text()
+                comparison = Comparison(comparison_combo.currentText())
+                value = value_input.text()
+
+                # Try to convert value to number if possible
+                try:
+                    value = float(value)
+                except ValueError:
+                    pass  # Keep as string if not a number
+
+                filters.append(Filter(property_name, comparison, value))
+
+        return FilterGroup(filters, LogicalOp.AND)  # Use AND to combine multiple conditions
+
+    def add_where_clause(self):
+        """Add a new WHERE clause to the filter"""
+        clause_widget = QWidget()
+        clause_layout = QHBoxLayout(clause_widget)
+
+        # Filter property
+        filter_property = QLineEdit()
+        filter_property.setObjectName("filter_property")  # Add object name
+        filter_property.setPlaceholderText("property")
+        clause_layout.addWidget(filter_property)
+
+        # Comparison operator
+        comparison_combo = QComboBox()
+        comparison_combo.setObjectName("comparison_combo")  # Add object name
+        comparison_combo.addItems([comp.value for comp in Comparison])
+        clause_layout.addWidget(comparison_combo)
+
+        # Filter value
+        filter_value = QLineEdit()
+        filter_value.setObjectName("filter_value")  # Add object name
+        filter_value.setPlaceholderText("value")
+        clause_layout.addWidget(filter_value)
+
+        # Remove button
+        remove_btn = QPushButton("Remove")
+        remove_btn.clicked.connect(lambda: self.remove_where_clause(clause_widget))
+        clause_layout.addWidget(remove_btn)
+
+        self.where_clauses_layout.addWidget(clause_widget)
+        self.where_clauses.append(clause_widget)
+
+    def remove_where_clause(self, clause_widget):
+        """Remove a WHERE clause from the filter"""
+        self.where_clauses.remove(clause_widget)
+        clause_widget.deleteLater()
+
+    def update_operation_placeholders(self):
+        """Update input field placeholders based on selected operation"""
+        operation = self.operation_combo.currentText()
+        
+        if operation == Operation.ADD_PROPERTY.value:
+            self.target_property.setPlaceholderText("property to add")
+            self.operation_value.setPlaceholderText("property value")
+        elif operation == Operation.MOVE.value:
+            self.target_property.setPlaceholderText("target node ID")
+            self.operation_value.setPlaceholderText("unused")
+        else:
+            self.target_property.setPlaceholderText("property to change")
+            self.operation_value.setPlaceholderText("new value")
 
 class GUILogHandler(logging.Handler):
     def __init__(self, log_widget):
