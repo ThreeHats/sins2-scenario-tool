@@ -10,6 +10,7 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBr
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
 import logging
 import time
+from typing import Any
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -801,6 +802,24 @@ class ScenarioToolGUI(QMainWindow):
             logging.debug("Updating template list due to directory change")
             self.update_template_list()
     
+    def validate_value(self, value_str: str) -> tuple[Any, bool]:
+        """Validate and convert a string input to the appropriate type.
+        Returns (converted_value, is_valid)"""
+        # Handle boolean values
+        if value_str.lower() in ['true', 'false']:
+            return value_str.lower() == 'true', True
+        
+        # Handle numeric values
+        try:
+            # Try integer first
+            if value_str.isdigit() or (value_str.startswith('-') and value_str[1:].isdigit()):
+                return int(value_str), True
+            # Then try float
+            return float(value_str), True
+        except ValueError:
+            # If not a number, return as string
+            return value_str, True
+    
     def apply_operation(self):
         logging.info("Apply operation button clicked")
         if not self.apply_operation_btn.isEnabled():
@@ -823,23 +842,23 @@ class ScenarioToolGUI(QMainWindow):
                 target_prop = self.target_property.text()
                 logging.debug(f"Target property: {target_prop}")
             
-            # Get operation value (not used for MOVE)
-            op_value = self.operation_value.text()
-            logging.debug(f"Initial operation value: {op_value}")
+            # Validate operation value
+            op_value_str = self.operation_value.text()
+            op_value, is_valid = self.validate_value(op_value_str)
             
-            try:
-                if operation == Operation.MOVE:
-                    op_value = int(op_value)
-                    logging.debug(f"Using node ID: {op_value}")
-                elif operation not in [Operation.REMOVE, Operation.CHANGE, Operation.ADD_PROPERTY]:
-                    op_value = float(op_value)
-                    logging.debug(f"Converted operation value to float: {op_value}")
-            except ValueError:
-                if operation not in [Operation.REMOVE, Operation.CHANGE]:
+            if not is_valid:
+                self.drop_label.setText("Invalid operation value")
+                logging.error(f"Invalid operation value: {op_value_str}")
+                return
+            
+            logging.debug(f"Validated operation value: {op_value} (type: {type(op_value)})")
+            
+            # Additional validation for numeric operations
+            if operation in [Operation.ADD, Operation.MULTIPLY, Operation.DIVIDE, Operation.SCALE]:
+                if not isinstance(op_value, (int, float)):
                     self.drop_label.setText("Operation value must be a number")
                     logging.error("Operation value must be a number for this operation type")
                     return
-                logging.debug("Keeping operation value as string")
             
             # Check if scenario is loaded
             if not self.scenario_tool.current_type:
@@ -893,18 +912,19 @@ class ScenarioToolGUI(QMainWindow):
             if property_input and comparison_combo and value_input:
                 property_name = property_input.text()
                 comparison = Comparison(comparison_combo.currentText())
-                value = value_input.text()
-
-                # Try to convert value to number if possible
-                try:
-                    value = float(value)
-                except ValueError:
-                    pass  # Keep as string if not a number
-
+                value_str = value_input.text()
+                
+                # Validate the filter value
+                value, is_valid = self.validate_value(value_str)
+                if not is_valid:
+                    logging.warning(f"Invalid filter value: {value_str}")
+                    continue
+                
+                logging.debug(f"Adding filter: {property_name} {comparison.value} {value}")
                 filters.append(Filter(property_name, comparison, value))
 
-        return FilterGroup(filters, LogicalOp.AND)  # Use AND to combine multiple conditions
-
+        return FilterGroup(filters, LogicalOp.AND)
+    
     def add_where_clause(self):
         """Add a new WHERE clause to the filter"""
         clause_widget = QWidget()
