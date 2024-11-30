@@ -75,31 +75,18 @@ def apply_operation(data: Dict,
     """Apply operation to filtered objects in the data"""
     logging.info(f"Applying operation {operation} to property {target_property}")
     
-    # Keep track of nodes to move and their new parent
+    # Keep track of nodes to move
     nodes_to_move = []
-    target_node_ref = {'node': None}  # Use a dict to store reference
     
-    def find_node_by_id(nodes: List[Dict], node_id: str) -> Optional[Dict]:
-        """Find a node by its ID in the node tree"""
+    def find_and_update_target(nodes: List[Dict], target_id: str, new_children: List[Dict]) -> bool:
+        """Find target node and update its children"""
         for node in nodes:
-            if str(node.get('id')) == node_id:
-                target_node_ref['node'] = node  # Store reference to the actual node
-                logging.debug(f"Found target node: {node}")
-                return node
-            if 'child_nodes' in node:
-                result = find_node_by_id(node['child_nodes'], node_id)
-                if result:
-                    return result
-        return None
-
-    def remove_node_from_parent(nodes: List[Dict], node_id: str) -> bool:
-        """Remove a node from its current parent's child_nodes"""
-        for i, node in enumerate(nodes):
-            if str(node.get('id')) == node_id:
-                nodes.pop(i)
+            if str(node.get('id')) == target_id:
+                node['child_nodes'] = new_children
+                logging.debug(f"Updated target node {target_id} with {len(new_children)} children")
                 return True
             if 'child_nodes' in node:
-                if remove_node_from_parent(node['child_nodes'], node_id):
+                if find_and_update_target(node['child_nodes'], target_id, new_children):
                     return True
         return False
 
@@ -127,9 +114,10 @@ def apply_operation(data: Dict,
                 logging.debug("Removing object")
                 return None
             elif operation == Operation.MOVE:
-                nodes_to_move.append(obj)
+                # Don't remove the node yet, just mark it for moving
+                nodes_to_move.append(obj.copy())  # Make a copy to preserve the original
                 logging.debug(f"Marked node {obj.get('id')} for moving")
-                return None
+                return None  # Remove from original location
             elif operation == Operation.ADD_PROPERTY:
                 if target_property not in obj:
                     result = obj.copy()
@@ -144,7 +132,7 @@ def apply_operation(data: Dict,
                 logging.debug(f"Modified {target_property} from {current_value} to {result[target_property]}")
                 return result
         
-        # If not moving or removing, process children
+        # Process children
         result = obj.copy()
         if 'child_nodes' in result:
             result['child_nodes'] = process_list(result['child_nodes'])
@@ -165,29 +153,17 @@ def apply_operation(data: Dict,
                 result.append(item)
         return result
 
-    # For MOVE operation, find target node first
-    if operation == Operation.MOVE:
-        target_node = find_node_by_id(data['root_nodes'], target_property)
-        if target_node:
-            # Ensure target node has child_nodes array
-            if 'child_nodes' not in target_node_ref['node']:
-                target_node_ref['node']['child_nodes'] = []
-            logging.debug(f"Target node ready for children: {target_node_ref['node']}")
-        else:
-            logging.error(f"Target node {target_property} not found")
-            return data
-
     # Process the data
     if 'root_nodes' in data:
-        # First pass: collect nodes to move and remove them from current locations
+        # First pass: collect and remove nodes to move
         data['root_nodes'] = process_list(data['root_nodes'])
         
-        # Second pass: add collected nodes to target
-        if operation == Operation.MOVE and target_node_ref['node'] and nodes_to_move:
+        # Update target node with collected nodes
+        if operation == Operation.MOVE and nodes_to_move:
             logging.debug(f"Moving {len(nodes_to_move)} nodes to target {target_property}")
-            target_node_ref['node']['child_nodes'] = nodes_to_move
-            logging.debug(f"Target node after move: {target_node_ref['node']}")
-        
+            if not find_and_update_target(data['root_nodes'], str(target_property), nodes_to_move):
+                logging.error(f"Failed to find target node {target_property} for updating")
+
         return data
     else:
         return process_object(data)
