@@ -558,6 +558,15 @@ class ScenarioToolGUI(QMainWindow):
                         status_msg = f"Script completed in {execution_time:.2f}s"
                         self.status_label.setProperty("status", "success")
                         self.drop_label.setText(f"{message}\nScenario updated successfully!")
+                        
+                        # Refresh the galaxy viewer with the updated data
+                        if self.scenario_tool.current_type == 'chart':
+                            chart_path = self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json"
+                            with open(chart_path, 'r') as f:
+                                chart_data = json.load(f)
+                            self.galaxy_viewer.set_data(chart_data)
+                            self.galaxy_viewer.update()
+                    
                     else:
                         status_msg = f"Script failed after {execution_time:.2f}s"
                         self.status_label.setProperty("status", "error")
