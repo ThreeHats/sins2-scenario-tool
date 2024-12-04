@@ -174,10 +174,9 @@ QPushButton#addPropertyButton {
     background-color: #0d47a1;
     color: white;
     border: none;
-    border-radius: 2px;
+    border-radius: 0px;
     padding: 4px;
     font-size: 11px;
-    margin: 5px 0px;
 }
 
 QPushButton#addPropertyButton:hover {

@@ -1085,6 +1085,13 @@ class GalaxyViewer(QWidget):
         info_header = QLabel("Node Details")
         info_header.setObjectName("nodeInfoHeader")
         info_layout.addWidget(info_header)
+
+        # Add "Add Property" button at the bottom
+        add_property_btn = QPushButton("Add Property")
+        add_property_btn.setObjectName("addPropertyButton")
+        add_property_btn.setFixedHeight(24)  # Make button thinner
+        add_property_btn.clicked.connect(self._add_new_property)
+        info_layout.addWidget(add_property_btn)
         
         # Create node info table
         self.node_info = QTableWidget()
@@ -1096,14 +1103,7 @@ class GalaxyViewer(QWidget):
         self.node_info.verticalHeader().setVisible(False)
         self.node_info.setShowGrid(False)
         self.node_info.itemChanged.connect(self._on_property_changed)
-        info_layout.addWidget(self.node_info)
-        
-        # Add "Add Property" button at the bottom
-        add_property_btn = QPushButton("Add Property")
-        add_property_btn.setObjectName("addPropertyButton")
-        add_property_btn.setFixedHeight(24)  # Make button thinner
-        add_property_btn.clicked.connect(self._add_new_property)
-        info_layout.addWidget(add_property_btn)
+        info_layout.addWidget(self.node_info)        
         
         # Add stretch at the bottom of info layout
         info_layout.addStretch(1)
