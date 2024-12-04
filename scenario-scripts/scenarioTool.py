@@ -10,7 +10,7 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBr
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
 import logging
 import time
-from typing import Any
+from typing import Optional, List, Dict, Any
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -69,14 +69,31 @@ class ScenarioTool:
         
         self.current_type = None  # Will store 'chart' or 'generator'
     
-    def determine_scenario_type(self, scenario_path: Path) -> str:
-        """Determine if this is a chart or generator scenario"""
-        with zipfile.ZipFile(scenario_path, 'r') as zip_ref:
-            files = zip_ref.namelist()
-            if "galaxy_chart_generator_params.json" in files:
-                return 'generator'
-            elif "galaxy_chart.json" in files:
-                return 'chart'
+    def determine_scenario_type(self, template_name: str) -> Optional[str]:
+        """Determine if this is a chart or generator scenario."""
+        try:
+            parts = template_name.split(': ')
+            if len(parts) != 2:
+                logging.error(f"Invalid template format: {template_name}")
+                return None
+            
+            source, name = parts
+            source_dir = self.templates_dirs.get(source.split('/')[0])
+            if not source_dir:
+                logging.error(f"Unknown source: {source}")
+                return None
+            
+            # Construct the full path to the template
+            template_path = source_dir / source.split('/')[1] / f"{name}.scenario"
+            
+            with zipfile.ZipFile(template_path, 'r') as zip_ref:
+                files = zip_ref.namelist()
+                if "galaxy_chart_generator_params.json" in files:
+                    return 'generator'
+                elif "galaxy_chart.json" in files:
+                    return 'chart'
+        except Exception as e:
+            logging.error(f"Error determining scenario type: {str(e)}")
         return None
     
     def extract_scenario(self, scenario_path: Path) -> bool:
@@ -577,16 +594,24 @@ class ScenarioToolGUI(QMainWindow):
             logging.info(f"Loaded template: {template_name}")
             self.status_label.setText("Template loaded successfully")
             
-            # Load the galaxy map data
-            galaxy_chart_path = self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json"
-            try:
-                with open(galaxy_chart_path, 'r') as file:
-                    galaxy_data = json.load(file)
-                    self.galaxy_viewer.set_data(galaxy_data)
-                    logging.info("Galaxy map loaded into viewer")
-            except Exception as e:
-                logging.error(f"Failed to load galaxy map: {str(e)}")
-                self.status_label.setText("Failed to load galaxy map")
+            # Determine scenario type
+            scenario_type = self.scenario_tool.determine_scenario_type(template_name)
+            
+            if scenario_type == 'chart':
+                # Load the galaxy map data
+                galaxy_chart_path = self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json"
+                try:
+                    with open(galaxy_chart_path, 'r') as file:
+                        galaxy_data = json.load(file)
+                        self.galaxy_viewer.set_data(galaxy_data)
+                        logging.info("Galaxy map loaded into viewer")
+                except Exception as e:
+                    logging.error(f"Failed to load galaxy map: {str(e)}")
+                    self.status_label.setText("Failed to load galaxy map")
+            elif scenario_type == 'generator':
+                # Display message for generator scenarios
+                self.galaxy_viewer.clear_and_set_message("Generator view not supported")
+                logging.info("Generator scenario loaded, view not supported")
         else:
             logging.error(message)
             self.status_label.setText("Failed to load template")
@@ -970,6 +995,11 @@ class GalaxyViewer(QWidget):
         self.parent_child_connections.clear()
         if self.data and 'root_nodes' in self.data:
             self._collect_node_positions()
+        self.update()
+
+    def clear_and_set_message(self, message):
+        self.data = None
+        self.message = message
         self.update()
         
     def _collect_node_positions(self):
