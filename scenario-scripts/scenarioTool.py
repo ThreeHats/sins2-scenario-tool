@@ -4,7 +4,7 @@ import zipfile
 import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox)
+                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox)
 from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBrush
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
@@ -994,6 +994,14 @@ class GUILogHandler(logging.Handler):
 class GalaxyViewer(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        
+        # Add visibility flags first
+        self.show_grid = True
+        self.show_central_orbits = True
+        self.show_other_orbits = True
+        self.show_phase_lanes = True
+        
+        # Initialize viewer properties
         self.data = None
         self.setMinimumSize(400, 400)
         self.zoom = 0.1
@@ -1003,6 +1011,42 @@ class GalaxyViewer(QWidget):
         self.node_positions = {}  # Cache for node positions
         self.parent_child_connections = []  # Cache for parent-child connections
         
+        # Create layout
+        layout = QVBoxLayout(self)
+        
+        # Create checkbox container
+        checkbox_container = QWidget()
+        checkbox_layout = QHBoxLayout(checkbox_container)
+        checkbox_layout.setContentsMargins(5, 5, 5, 0)  # Add some padding
+        
+        # Create checkboxes
+        self.grid_checkbox = QCheckBox("Show Grid")
+        self.grid_checkbox.setChecked(True)
+        self.grid_checkbox.stateChanged.connect(self.toggle_grid)
+        
+        self.central_orbits_checkbox = QCheckBox("Show Central Orbits")
+        self.central_orbits_checkbox.setChecked(True)
+        self.central_orbits_checkbox.stateChanged.connect(self.toggle_central_orbits)
+        
+        self.other_orbits_checkbox = QCheckBox("Show Other Orbits")
+        self.other_orbits_checkbox.setChecked(True)
+        self.other_orbits_checkbox.stateChanged.connect(self.toggle_other_orbits)
+        
+        self.phase_lanes_checkbox = QCheckBox("Show Phase Lanes")
+        self.phase_lanes_checkbox.setChecked(True)
+        self.phase_lanes_checkbox.stateChanged.connect(self.toggle_phase_lanes)
+        
+        # Add checkboxes to layout
+        checkbox_layout.addWidget(self.grid_checkbox)
+        checkbox_layout.addWidget(self.central_orbits_checkbox)
+        checkbox_layout.addWidget(self.other_orbits_checkbox)
+        checkbox_layout.addWidget(self.phase_lanes_checkbox)
+        checkbox_layout.addStretch()
+        
+        # Add checkbox container to main layout
+        layout.addWidget(checkbox_container)
+        layout.addStretch()  # This will push everything to the top
+    
     def set_data(self, data):
         self.data = data
         self.node_positions.clear()
@@ -1068,63 +1112,27 @@ class GalaxyViewer(QWidget):
             
         finally:
             painter.end()
-    
-    def draw_phase_lanes(self, painter):
-        # Retrieve the central star position with a default value
-        central_pos = self.node_positions.get('0', QPointF(0.0, 0.0))
-        # logging.debug(f"Drawing phase lanes with central star at: {central_pos.x()}, {central_pos.y()}")
         
-        # Draw parent-child connections as circles
-        painter.setPen(QPen(QColor(255, 255, 0), 1/self.zoom))  # Yellow for parent-child
+    def toggle_grid(self, state):
+        self.show_grid = bool(state)
+        self.update()
         
-        # First, draw all connections involving the central star
-        central_connections = [(p, c) for p, c in self.parent_child_connections if p == '0' or c == '0']
-        # logging.debug(f"Processing central star connections: {central_connections}")
+    def toggle_central_orbits(self, state):
+        self.show_central_orbits = bool(state)
+        self.update()
         
-        for parent_id, child_id in central_connections:
-            other_id = child_id if parent_id == '0' else parent_id
-            other_pos = self.node_positions.get(other_id)
-            if other_pos:
-                # Calculate radius as distance from center to other node
-                diff = other_pos - central_pos
-                radius = (diff.x()**2 + diff.y()**2)**0.5
-                # logging.debug(f"Drawing central connection to {other_id} with radius {radius}")
-                if radius > 0:
-                    painter.drawEllipse(central_pos, radius, radius)
-                    # logging.debug(f"Drew circle from center with radius {radius}")
+    def toggle_other_orbits(self, state):
+        self.show_other_orbits = bool(state)
+        self.update()
         
-        # Then draw all other connections
-        for parent_id, child_id in self.parent_child_connections:
-            if parent_id != '0' and child_id != '0':  # Skip central connections as they're already drawn
-                parent_pos = self.node_positions.get(parent_id)
-                child_pos = self.node_positions.get(child_id)
-                if parent_pos and child_pos:
-                    diff = parent_pos - child_pos
-                    radius = (diff.x()**2 + diff.y()**2)**0.5
-                    if radius > 0:
-                        painter.drawEllipse(parent_pos, radius, radius)
-                        # logging.debug(f"Drew circle with radius {radius} at {parent_pos}")
-
-        # Then draw phase lanes
-        if 'phase_lanes' in self.data:
-            for line in self.data['phase_lanes']:
-                node_a_pos = self.node_positions.get(str(line['node_a']), central_pos if str(line['node_a']) == '0' else None)
-                node_b_pos = self.node_positions.get(str(line['node_b']), central_pos if str(line['node_b']) == '0' else None)
-                
-                # Check if positions are not None
-                if node_a_pos is not None and node_b_pos is not None:
-                    # Set line style based on type
-                    line_type = line.get('type', 'default')
-                    if line_type == 'wormhole':
-                        painter.setPen(QPen(QColor(128, 0, 128), 2/self.zoom))  # Purple for wormholes
-                    elif line_type == 'star':
-                        painter.setPen(QPen(QColor(255, 215, 0), 2/self.zoom))  # Thicker gold for star connections
-                    else:
-                        painter.setPen(QPen(QColor(0, 0, 255), 1/self.zoom))  # Blue for default
-                    
-                    painter.drawLine(node_a_pos, node_b_pos)
+    def toggle_phase_lanes(self, state):
+        self.show_phase_lanes = bool(state)
+        self.update()
     
     def draw_grid(self, painter):
+        if not self.show_grid:
+            return
+            
         # Draw coordinate grid
         grid_size = 1000  # Game units between grid lines
         grid_count = 10   # Number of grid lines in each direction
@@ -1143,6 +1151,62 @@ class GalaxyViewer(QWidget):
         painter.setPen(QPen(QColor(100, 100, 100), 2/self.zoom))
         painter.drawLine(-grid_count * grid_size, 0, grid_count * grid_size, 0)
         painter.drawLine(0, -grid_count * grid_size, 0, grid_count * grid_size)
+    
+    def draw_phase_lanes(self, painter):
+        central_pos = self.node_positions.get('0', QPointF(0.0, 0.0))
+        logging.debug(f"Drawing phase lanes with central star at: {central_pos.x()}, {central_pos.y()}")
+        
+        # Draw parent-child connections as circles
+        painter.setPen(QPen(QColor(255, 255, 0), 1/self.zoom))  # Yellow for parent-child
+        
+        # First, draw all connections involving the central star
+        if self.show_central_orbits:
+            central_connections = [(p, c) for p, c in self.parent_child_connections if p == '0' or c == '0']
+            logging.debug(f"Processing central star connections: {central_connections}")
+            
+            for parent_id, child_id in central_connections:
+                other_id = child_id if parent_id == '0' else parent_id
+                other_pos = self.node_positions.get(other_id)
+                if other_pos:
+                    # Calculate radius as distance from center to other node
+                    diff = other_pos - central_pos
+                    radius = (diff.x()**2 + diff.y()**2)**0.5
+                    # logging.debug(f"Drawing central connection to {other_id} with radius {radius}")
+                    if radius > 0:
+                        painter.drawEllipse(central_pos, radius, radius)
+                        # logging.debug(f"Drew circle from center with radius {radius}")
+        
+        # Then draw all other connections
+        if self.show_other_orbits:
+            for parent_id, child_id in self.parent_child_connections:
+                if parent_id != '0' and child_id != '0':
+                    parent_pos = self.node_positions.get(parent_id)
+                    child_pos = self.node_positions.get(child_id)
+                    if parent_pos and child_pos:
+                        diff = parent_pos - child_pos
+                        radius = (diff.x()**2 + diff.y()**2)**0.5
+                        if radius > 0:
+                            painter.drawEllipse(parent_pos, radius, radius)
+                            # logging.debug(f"Drew circle with radius {radius} at {parent_pos}")
+        
+        # Then draw phase lanes
+        if self.show_phase_lanes and 'phase_lanes' in self.data:
+            for line in self.data['phase_lanes']:
+                node_a_pos = self.node_positions.get(str(line['node_a']), central_pos if str(line['node_a']) == '0' else None)
+                node_b_pos = self.node_positions.get(str(line['node_b']), central_pos if str(line['node_b']) == '0' else None)
+                
+                # Check if positions are not None
+                if node_a_pos is not None and node_b_pos is not None:
+                    # Set line style based on type
+                    line_type = line.get('type', 'default')
+                    if line_type == 'wormhole':
+                        painter.setPen(QPen(QColor(128, 0, 128), 2/self.zoom))  # Purple for wormholes
+                    elif line_type == 'star':
+                        painter.setPen(QPen(QColor(255, 215, 0), 2/self.zoom))  # Thicker gold for star connections
+                    else:
+                        painter.setPen(QPen(QColor(0, 0, 255), 1/self.zoom))  # Blue for default
+                    
+                    painter.drawLine(node_a_pos, node_b_pos)
     
     def draw_nodes(self, painter):
         if 'root_nodes' not in self.data:
