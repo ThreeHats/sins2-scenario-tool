@@ -1086,7 +1086,8 @@ class GalaxyViewer(QWidget):
                 node_a_pos = self.node_positions.get(str(line['node_a']), central_pos if str(line['node_a']) == '0' else None)
                 node_b_pos = self.node_positions.get(str(line['node_b']), central_pos if str(line['node_b']) == '0' else None)
                 
-                if node_a_pos and node_b_pos:
+                # Check if positions are not None
+                if node_a_pos is not None and node_b_pos is not None:
                     # Set line style based on type
                     line_type = line.get('type', 'default')
                     if line_type == 'wormhole':
@@ -1140,11 +1141,11 @@ class GalaxyViewer(QWidget):
             pos = QPointF(node['position'][0], -node['position'][1])
             
             # Set node appearance based on type
-            node_size = 20  # Reduced base node size
+            node_size = 10  # Reduced base node size
             if 'filling_name' in node:
                 if 'star' in node['filling_name']:
                     color = QColor(255, 255, 0)  # Yellow for stars
-                    node_size = 40  # Slightly larger for stars
+                    node_size = 15  # Slightly larger for stars
                 elif 'planet' in node['filling_name']:
                     color = QColor(0, 255, 0)    # Green for planets
                 elif 'asteroid' in node['filling_name']:
