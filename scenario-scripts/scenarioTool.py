@@ -249,6 +249,7 @@ class ScenarioTool:
                 zip_ref.extractall(self.working_dirs['chart'])
             
             logging.info(f"Loaded template: {template_name}")
+            self.current_type = self.determine_scenario_type(template_name)
             return True, "Template loaded successfully"
         except Exception as e:
             logging.error(f"Error loading template: {str(e)}")
@@ -593,6 +594,7 @@ class ScenarioToolGUI(QMainWindow):
         if success:
             logging.info(f"Loaded template: {template_name}")
             self.status_label.setText("Template loaded successfully")
+            self.drop_label.setText(f"Loaded template: {template_name}")
             
             # Determine scenario type
             scenario_type = self.scenario_tool.determine_scenario_type(template_name)
@@ -612,6 +614,9 @@ class ScenarioToolGUI(QMainWindow):
                 # Display message for generator scenarios
                 self.galaxy_viewer.clear_and_set_message("Generator view not supported")
                 logging.info("Generator scenario loaded, view not supported")
+            
+            # Update available scripts
+            self.update_script_list()
         else:
             logging.error(message)
             self.status_label.setText("Failed to load template")
@@ -630,7 +635,7 @@ class ScenarioToolGUI(QMainWindow):
             self.drop_label.setText('Scenario saved successfully!')
     
     def update_script_list(self):
-        """Update the list of available scripts"""
+        """Update the list of available scripts based on the loaded template."""
         self.script_list.clear()
         if self.scenario_tool.current_type:
             all_scripts = []
