@@ -1074,20 +1074,22 @@ class GalaxyViewer(QWidget):
 
         # Ensure central_pos is valid before using it
         if central_pos is not None:
-            # Proceed with drawing logic using central_pos
-            # Example: painter.drawLine(central_pos, some_other_pos)
             pass
         else:
             logging.warning("Central star position is None, using default (0.0, 0.0)")
             central_pos = QPointF(0.0, 0.0)
         
-        # Draw parent-child connections first
+        # Draw parent-child connections as circles
         painter.setPen(QPen(QColor(255, 255, 0), 1/self.zoom))  # Yellow for parent-child
         for parent_id, child_id in self.parent_child_connections:
             parent_pos = self.node_positions.get(parent_id, central_pos if parent_id == '0' else None)
             child_pos = self.node_positions.get(child_id, central_pos if child_id == '0' else None)
             if parent_pos and child_pos:
-                painter.drawLine(parent_pos, child_pos)
+                # Calculate the radius for the circle using Euclidean distance
+                dx = parent_pos.x() - child_pos.x()
+                dy = parent_pos.y() - child_pos.y()
+                radius = (dx**2 + dy**2)**0.5
+                painter.drawEllipse(parent_pos, radius, radius)
         
         # Then draw phase lanes
         if 'phase_lanes' in self.data:
