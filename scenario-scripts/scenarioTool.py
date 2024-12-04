@@ -456,7 +456,7 @@ class ScenarioToolGUI(QMainWindow):
         options_layout.addWidget(operation_group)
         
         # Right side (galaxy viewer)
-        self.galaxy_viewer = GalaxyViewer()
+        self.galaxy_viewer = GalaxyViewer(save_callback=self.save_galaxy_data)
         
         # Add both sides to main layout
         main_layout.addWidget(options_widget, 3)  # 30% width
@@ -970,6 +970,16 @@ class ScenarioToolGUI(QMainWindow):
             self.target_property.setPlaceholderText("property to change")
             self.operation_value.setPlaceholderText("new value")
 
+    def save_galaxy_data(self, data):
+        """Save the galaxy data to the working directory"""
+        try:
+            chart_path = self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json"
+            with open(chart_path, 'w') as f:
+                json.dump(data, f, indent=2)
+            logging.debug("Saved galaxy data to working copy")
+        except Exception as e:
+            logging.error(f"Failed to save galaxy data: {e}")
+
 class GUILogHandler(logging.Handler):
     def __init__(self, log_widget):
         super().__init__()
@@ -992,8 +1002,9 @@ class GUILogHandler(logging.Handler):
         self.log_widget.scrollToBottom()
 
 class GalaxyViewer(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, save_callback=None):
         super().__init__(parent)
+        self.save_callback = save_callback  # Store the save function
         
         # Add visibility flags first
         self.show_grid = True
@@ -1086,6 +1097,13 @@ class GalaxyViewer(QWidget):
         self.node_info.setShowGrid(False)
         self.node_info.itemChanged.connect(self._on_property_changed)
         info_layout.addWidget(self.node_info)
+        
+        # Add "Add Property" button at the bottom
+        add_property_btn = QPushButton("Add Property")
+        add_property_btn.setObjectName("addPropertyButton")
+        add_property_btn.setFixedHeight(24)  # Make button thinner
+        add_property_btn.clicked.connect(self._add_new_property)
+        info_layout.addWidget(add_property_btn)
         
         # Add stretch at the bottom of info layout
         info_layout.addStretch(1)
@@ -1398,11 +1416,11 @@ class GalaxyViewer(QWidget):
             # Add basic info
             self._add_property_row("Node ID", str(self.selected_node.get('id', 'N/A')), editable=False)
             
-            # Add position as separate X and Y coordinates
+            # Add position as separate X and Y coordinates (positive Y is up)
             if 'position' in self.selected_node:
                 pos = self.selected_node['position']
                 self._add_property_row("Position X", f"{pos[0]:.1f}")
-                self._add_property_row("Position Y", f"{pos[1]:.1f}")
+                self._add_property_row("Position Y", f"{pos[1]:.1f}")  # Display Y as is
             
             # Add editable properties
             if 'filling_name' in self.selected_node:
@@ -1454,22 +1472,39 @@ class GalaxyViewer(QWidget):
                 # Update the node data
                 if key == "Type":
                     self.selected_node['filling_name'] = new_value
+                    self.update()  # Redraw to update node color
                 elif key == "Position X":
                     x = float(new_value)
                     self.selected_node['position'][0] = x
                     self.node_positions[str(self.selected_node['id'])] = QPointF(
-                        x, self.selected_node['position'][1]
+                        x, -self.selected_node['position'][1]
                     )
-                    self.update()  # Redraw the view
+                    self.update()
                 elif key == "Position Y":
                     y = float(new_value)
                     self.selected_node['position'][1] = y
                     self.node_positions[str(self.selected_node['id'])] = QPointF(
-                        self.selected_node['position'][0], y
+                        self.selected_node['position'][0], -y
                     )
-                    self.update()  # Redraw the view
+                    self.update()
                 else:
+                    # Try to convert to number if possible
+                    try:
+                        if '.' in new_value:
+                            new_value = float(new_value)
+                        else:
+                            new_value = int(new_value)
+                    except ValueError:
+                        pass  # Keep as string if not a number
+                    
                     self.selected_node[key] = new_value
+                
+                # Save changes using callback
+                if self.save_callback:
+                    self.save_callback(self.data)
+                    logging.debug(f"Saved changes to working copy after updating {key}")
+                else:
+                    logging.warning("No save callback provided")
                 
                 logging.debug(f"Updated property {key} to {new_value}")
             except ValueError:
@@ -1481,6 +1516,25 @@ class GalaxyViewer(QWidget):
                     else:
                         item.setText(f"{pos[1]:.1f}")
                     logging.error(f"Invalid number format for {key}: {new_value}")
+
+    def _add_new_property(self):
+        if not self.selected_node:
+            return
+        
+        # Add a new row with empty property
+        row = self.node_info.rowCount()
+        self.node_info.insertRow(row)
+        
+        # Add editable key
+        key_item = QTableWidgetItem("new_property")
+        self.node_info.setItem(row, 0, key_item)
+        
+        # Add editable value
+        value_item = QTableWidgetItem("value")
+        self.node_info.setItem(row, 1, value_item)
+        
+        # Start editing the property name
+        self.node_info.editItem(key_item)
 
 def main():
     app = QApplication(sys.argv)

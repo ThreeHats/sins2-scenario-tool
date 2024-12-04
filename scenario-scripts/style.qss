@@ -169,3 +169,21 @@ QCheckBox::indicator:checked {
 QCheckBox::indicator:hover {
     border-color: #1565c0;
 }
+
+QPushButton#addPropertyButton {
+    background-color: #0d47a1;
+    color: white;
+    border: none;
+    border-radius: 2px;
+    padding: 4px;
+    font-size: 11px;
+    margin: 5px 0px;
+}
+
+QPushButton#addPropertyButton:hover {
+    background-color: #1565c0;
+}
+
+QPushButton#addPropertyButton:pressed {
+    background-color: #0a3880;
+}
