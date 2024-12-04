@@ -987,7 +987,7 @@ class GalaxyViewer(QWidget):
         super().__init__(parent)
         self.data = None
         self.setMinimumSize(400, 400)
-        self.zoom = 0.01
+        self.zoom = 0.1
         self.center_offset = QPointF(0, 0)
         self.dragging = False
         self.last_pos = None
