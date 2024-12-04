@@ -4,7 +4,7 @@ import zipfile
 import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView)
+                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea)
 from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBrush
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
@@ -1103,7 +1103,11 @@ class GalaxyViewer(QWidget):
         self.node_info.verticalHeader().setVisible(False)
         self.node_info.setShowGrid(False)
         self.node_info.itemChanged.connect(self._on_property_changed)
-        info_layout.addWidget(self.node_info)        
+        self.node_info.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        self.node_info.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.node_info.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.node_info.setContentsMargins(0, 0, 0, 0)  # Set margins to 0 for the table
+        info_layout.addWidget(self.node_info)
         
         # Add stretch at the bottom of info layout
         info_layout.addStretch(1)
@@ -1205,15 +1209,12 @@ class GalaxyViewer(QWidget):
                 node_id = str(node['id'])  # Convert ID to string
                 pos = QPointF(node['position'][0], -node['position'][1] if node['position'][1] != -0.0 else 0.0)
                 self.node_positions[node_id] = pos
-                # logging.debug(f"Collected position for node {node_id}: {pos.x()}, {pos.y()}")
                 
                 if 'child_nodes' in node:
                     for child in node['child_nodes']:
                         if 'id' in child and 'position' in child:
                             connection = (node_id, str(child['id']))
                             self.parent_child_connections.append(connection)
-                            # if node_id == '0' or str(child['id']) == '0':
-                            #     logging.debug(f"Added central star connection: {connection}")
                         collect_positions(child)
         
         self.node_positions.clear()
@@ -1222,10 +1223,6 @@ class GalaxyViewer(QWidget):
         # Process all nodes, including root nodes
         for node in self.data['root_nodes']:
             collect_positions(node)
-        
-        # Log all connections involving the central star
-        central_connections = [conn for conn in self.parent_child_connections if '0' in conn]
-        # logging.debug(f"All central star connections: {central_connections}")
     
     def paintEvent(self, event):
         if not self.data:
@@ -1420,7 +1417,7 @@ class GalaxyViewer(QWidget):
             if 'position' in self.selected_node:
                 pos = self.selected_node['position']
                 self._add_property_row("Position X", f"{pos[0]:.1f}")
-                self._add_property_row("Position Y", f"{pos[1]:.1f}")  # Display Y as is
+                self._add_property_row("Position Y", f"{-pos[1]:.1f}")  # Display Y as negative
             
             # Add editable properties
             if 'filling_name' in self.selected_node:
@@ -1481,10 +1478,10 @@ class GalaxyViewer(QWidget):
                     )
                     self.update()
                 elif key == "Position Y":
-                    y = float(new_value)
+                    y = -float(new_value)
                     self.selected_node['position'][1] = y
                     self.node_positions[str(self.selected_node['id'])] = QPointF(
-                        self.selected_node['position'][0], -y
+                        self.selected_node['position'][0], y
                     )
                     self.update()
                 else:
@@ -1514,7 +1511,7 @@ class GalaxyViewer(QWidget):
                     if key == "Position X":
                         item.setText(f"{pos[0]:.1f}")
                     else:
-                        item.setText(f"{pos[1]:.1f}")
+                        item.setText(f"{-pos[1]:.1f}")
                     logging.error(f"Invalid number format for {key}: {new_value}")
 
     def _add_new_property(self):
@@ -1533,8 +1530,23 @@ class GalaxyViewer(QWidget):
         value_item = QTableWidgetItem("value")
         self.node_info.setItem(row, 1, value_item)
         
+        # Update the selected node data
+        self.selected_node["new_property"] = "value"
+        
+        # Calculate and set the table height based on content
+        header_height = self.node_info.horizontalHeader().height()
+        content_height = sum(self.node_info.rowHeight(i) for i in range(self.node_info.rowCount()))
+        total_height = header_height + content_height + 2  # Add small buffer for borders
+        
+        # Set fixed height directly
+        self.node_info.setFixedHeight(total_height)
+        
         # Start editing the property name
         self.node_info.editItem(key_item)
+        
+        # Save changes
+        if self.save_callback:
+            self.save_callback(self.data)
 
 def main():
     app = QApplication(sys.argv)
