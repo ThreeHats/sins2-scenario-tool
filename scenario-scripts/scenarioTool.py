@@ -309,37 +309,39 @@ class ScenarioToolGUI(QMainWindow):
         self.setup_file_watchers()
         self.update_template_list()
         self.update_script_list()
+        
+        # Open in full screen
+        self.showMaximized()
     
     def init_ui(self):
         self.setWindowTitle('Sins 2 Scenario Tool')
-        self.setMinimumSize(800, 600)
         
         # Create central widget and layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
+        main_layout = QHBoxLayout(central_widget)  # Use horizontal layout for main content
         
+        # Left side (options)
+        options_widget = QWidget()
+        options_layout = QVBoxLayout(options_widget)
         
-        # Create drop area
+        # Add all existing widgets to options_layout
         self.drop_label = QLabel('Drop .scenario file here\nNo file loaded')
-        self.drop_label.setObjectName("dropLabel")  # Set object name for CSS targeting
+        self.drop_label.setObjectName("dropLabel")
         self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.drop_label.setMinimumHeight(100)
-        layout.addWidget(self.drop_label)
+        options_layout.addWidget(self.drop_label)
         
-        # Create script list
         self.script_list = QListWidget()
         self.update_script_list()
-        layout.addWidget(QLabel('Available Scripts:'))
-        layout.addWidget(self.script_list)
+        options_layout.addWidget(QLabel('Available Scripts:'))
+        options_layout.addWidget(self.script_list)
         
-        # Create template list
         self.template_list = QListWidget()
         self.update_template_list()
-        layout.addWidget(QLabel('Available Templates:'))
-        layout.addWidget(self.template_list)
+        options_layout.addWidget(QLabel('Available Templates:'))
+        options_layout.addWidget(self.template_list)
         
-        # Add directory selection
         dir_layout = QHBoxLayout()
         dir_label = QLabel('Save Directory:')
         self.dir_input = QLineEdit()
@@ -354,17 +356,15 @@ class ScenarioToolGUI(QMainWindow):
         dir_layout.addWidget(self.dir_input)
         dir_layout.addWidget(self.dir_select_btn)
         dir_layout.addWidget(self.template_dir_btn)
-        layout.addLayout(dir_layout)
+        options_layout.addLayout(dir_layout)
         
-        # Add name input
         name_layout = QHBoxLayout()
         name_label = QLabel('Scenario Name:')
         self.name_input = QLineEdit()
         name_layout.addWidget(name_label)
         name_layout.addWidget(self.name_input)
-        layout.addLayout(name_layout)
+        options_layout.addLayout(name_layout)
         
-        # Add directory buttons
         dir_buttons_layout = QHBoxLayout()
         
         steam_btn = QPushButton('Use Steam Scenarios Folder')
@@ -379,58 +379,47 @@ class ScenarioToolGUI(QMainWindow):
         dir_buttons_layout.addWidget(steam_btn)
         dir_buttons_layout.addWidget(epic_btn)
         dir_buttons_layout.addWidget(default_btn)
-        layout.addLayout(dir_buttons_layout)
+        options_layout.addLayout(dir_buttons_layout)
         
-        # Create buttons
         self.run_script_btn = QPushButton('Run Selected Script')
         self.run_script_btn.clicked.connect(self.run_script)
-        self.run_script_btn.setEnabled(False)  # Initially disabled
-        layout.addWidget(self.run_script_btn)
+        self.run_script_btn.setEnabled(False)
+        options_layout.addWidget(self.run_script_btn)
         
         self.load_template_btn = QPushButton('Load Selected Template')
         self.load_template_btn.clicked.connect(self.load_template)
-        layout.addWidget(self.load_template_btn)
+        options_layout.addWidget(self.load_template_btn)
         
         self.save_scenario_btn = QPushButton('Save Scenario')
         self.save_scenario_btn.clicked.connect(self.save_scenario)
-        self.save_scenario_btn.setEnabled(False)  # Initially disabled
-        layout.addWidget(self.save_scenario_btn)
+        self.save_scenario_btn.setEnabled(False)
+        options_layout.addWidget(self.save_scenario_btn)
         
-        # Enable drop events
         self.setAcceptDrops(True)
         
-        # Load stylesheet
-        self.load_stylesheet()
-        
-        # Add status label
         self.status_label = QLabel()
-        self.status_label.setObjectName("statusLabel")  # For CSS styling
+        self.status_label.setObjectName("statusLabel")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setText("Ready")
-        layout.addWidget(self.status_label)
+        options_layout.addWidget(self.status_label)
         
-        # Add log display
         self.log_display = QListWidget()
-        # Make the log display stretch when the window is resized
         self.log_display.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding
         )
-        layout.addWidget(self.log_display)
+        options_layout.addWidget(self.log_display)
         
-        # Setup custom logging handler
         self.log_handler = GUILogHandler(self.log_display)
         self.log_handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
         logging.getLogger().addHandler(self.log_handler)
         
-        # Enable run button when script is selected
         self.script_list.itemSelectionChanged.connect(self.update_run_button_state)
         
         # Operation Controls
         operation_group = QWidget()
         operation_layout = QVBoxLayout(operation_group)
 
-        # Operation line
         operation_line = QHBoxLayout()
         self.operation_combo = QComboBox()
         self.operation_combo.addItems([op.value for op in Operation])
@@ -439,7 +428,6 @@ class ScenarioToolGUI(QMainWindow):
         self.operation_value = QLineEdit()
         self.operation_value.setPlaceholderText("new value")
         
-        # Connect operation combo to update placeholders
         self.operation_combo.currentTextChanged.connect(self.update_operation_placeholders)
         
         operation_line.addWidget(self.operation_combo)
@@ -448,42 +436,28 @@ class ScenarioToolGUI(QMainWindow):
         operation_line.addWidget(self.operation_value)
         operation_layout.addLayout(operation_line)
 
-        # WHERE clauses container
         self.where_clauses_widget = QWidget()
         self.where_clauses_layout = QVBoxLayout(self.where_clauses_widget)
         operation_layout.addWidget(self.where_clauses_widget)
 
-        # Add WHERE clause button
         add_where_btn = QPushButton("Add WHERE Clause")
         add_where_btn.clicked.connect(self.add_where_clause)
         operation_layout.addWidget(add_where_btn)
 
-        # Apply button
         self.apply_operation_btn = QPushButton("Apply Operation")
         self.apply_operation_btn.clicked.connect(self.apply_operation)
         operation_layout.addWidget(self.apply_operation_btn)
 
-        layout.addWidget(operation_group)
-        
-        # Create horizontal split for main content
-        main_layout = QHBoxLayout()
-        
-        # Left side (existing controls)
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        
-        # Move existing widgets to left layout
-        # ... (move all existing widget additions to left_layout) ...
+        options_layout.addWidget(operation_group)
         
         # Right side (galaxy viewer)
         self.galaxy_viewer = GalaxyViewer()
         
         # Add both sides to main layout
-        main_layout.addWidget(left_widget)
-        main_layout.addWidget(self.galaxy_viewer)
+        main_layout.addWidget(options_widget, 3)  # 30% width
+        main_layout.addWidget(self.galaxy_viewer, 7)  # 70% width
         
-        # Add main layout to central widget
-        layout.addLayout(main_layout)
+        self.load_stylesheet()
     
     def update_run_button_state(self):
         """Enable run button only when a script is selected and a scenario is loaded"""
