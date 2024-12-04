@@ -3,3 +3,4 @@ scenario-scripts/community/scripts/generator/__pycache__/
 scenario-scripts/working/
 scenario-scripts/output/
 scenario-scripts/user/
+scenario-scripts/__pycache__/

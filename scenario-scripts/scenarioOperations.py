@@ -107,6 +107,10 @@ def apply_operation(data: Dict,
         if not isinstance(obj, dict):
             return obj
             
+        # Process children first to ensure we handle nested structures
+        if 'child_nodes' in obj:
+            obj['child_nodes'] = process_list(obj['child_nodes'])
+        
         # Check if this object matches our filter
         if filter_group.evaluate(obj):
             logging.debug(f"Found matching object: {obj}")
@@ -132,11 +136,7 @@ def apply_operation(data: Dict,
                 logging.debug(f"Modified {target_property} from {current_value} to {result[target_property]}")
                 return result
         
-        # Process children
-        result = obj.copy()
-        if 'child_nodes' in result:
-            result['child_nodes'] = process_list(result['child_nodes'])
-        return result
+        return obj
 
     def process_list(lst: List) -> List:
         result = []
