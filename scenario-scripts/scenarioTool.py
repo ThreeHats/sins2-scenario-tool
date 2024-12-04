@@ -4,7 +4,7 @@ import zipfile
 import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox)
+                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit)
 from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBrush
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
@@ -1011,6 +1011,7 @@ class GalaxyViewer(QWidget):
         self.last_pos = None
         self.node_positions = {}  # Cache for node positions
         self.parent_child_connections = []  # Cache for parent-child connections
+        self.selected_node = None  # Store the currently selected node
         
         # Create layout
         layout = QVBoxLayout(self)
@@ -1018,7 +1019,7 @@ class GalaxyViewer(QWidget):
         # Create checkbox container
         checkbox_container = QWidget()
         checkbox_layout = QHBoxLayout(checkbox_container)
-        checkbox_layout.setContentsMargins(5, 5, 5, 0)  # Add some padding
+        checkbox_layout.setContentsMargins(5, 5, 5, 0)
         
         # Create checkboxes
         self.grid_checkbox = QCheckBox("Show Grid")
@@ -1049,8 +1050,15 @@ class GalaxyViewer(QWidget):
         checkbox_layout.addWidget(self.regular_lanes_checkbox)
         checkbox_layout.addStretch()
         
-        # Add checkbox container to main layout
+        # Create node info display
+        self.node_info = QTextEdit()
+        self.node_info.setReadOnly(True)
+        self.node_info.setMaximumHeight(100)
+        self.node_info.setVisible(False)  # Hide initially
+        
+        # Add widgets to layout
         layout.addWidget(checkbox_container)
+        layout.addWidget(self.node_info)
         layout.addStretch()
     
     def toggle_grid(self, state):
@@ -1181,14 +1189,19 @@ class GalaxyViewer(QWidget):
                             self.height() / 2 + self.center_offset.y())
             painter.scale(self.zoom, self.zoom)
             
-            # Draw grid
+            # Draw everything
             self.draw_grid(painter)
-            
-            # Draw phase lanes
             self.draw_phase_lanes(painter)
-            
-            # Draw nodes
             self.draw_nodes(painter)
+            
+            # Highlight selected node
+            if self.selected_node:
+                node_id = str(self.selected_node.get('id', ''))
+                if node_id in self.node_positions:
+                    pos = self.node_positions[node_id]
+                    painter.setPen(QPen(QColor(255, 255, 255), 2/self.zoom))
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.drawEllipse(pos, 15/self.zoom, 15/self.zoom)
             
         finally:
             painter.end()
@@ -1264,20 +1277,95 @@ class GalaxyViewer(QWidget):
         self.update()
     
     def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
+        if event.button() == Qt.MouseButton.RightButton:
             self.dragging = True
             self.last_pos = event.pos()
+        elif event.button() == Qt.MouseButton.LeftButton:
+            # Convert screen coordinates to world coordinates
+            screen_pos = event.pos()
+            world_pos = self.screen_to_world(screen_pos)
+            self.select_node_at_position(world_pos)
     
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
+        if event.button() == Qt.MouseButton.RightButton:
             self.dragging = False
     
     def mouseMoveEvent(self, event):
-        if self.dragging and self.last_pos:
+        if self.dragging and self.last_pos is not None:
+            # Calculate the difference in position
             delta = event.pos() - self.last_pos
             self.center_offset += QPointF(delta.x(), delta.y())
             self.last_pos = event.pos()
-            self.update()
+            self.update()  # Redraw the view
+    
+    def screen_to_world(self, screen_pos):
+        # Convert screen coordinates to world coordinates
+        center = QPointF(self.width() / 2, self.height() / 2)
+        # Convert QPoint to QPointF
+        screen_pos_f = QPointF(screen_pos.x(), screen_pos.y())
+        offset = screen_pos_f - center - self.center_offset
+        return QPointF(offset.x() / self.zoom, offset.y() / self.zoom)
+    
+    def select_node_at_position(self, world_pos):
+        closest_node = None
+        closest_dist = float('inf')
+        node_radius = 10 / self.zoom  # Adjust hit detection radius based on zoom
+        
+        # Search through all nodes
+        for node_id, pos in self.node_positions.items():
+            dx = pos.x() - world_pos.x()
+            dy = pos.y() - world_pos.y()
+            dist = (dx * dx + dy * dy) ** 0.5
+            
+            if dist < node_radius and dist < closest_dist:
+                # Find the actual node data
+                node_data = self.find_node_by_id(node_id)
+                if node_data:
+                    closest_node = node_data
+                    closest_dist = dist
+        
+        self.selected_node = closest_node
+        self.update_node_info()
+        self.update()
+    
+    def find_node_by_id(self, target_id):
+        def search_nodes(node):
+            if str(node.get('id', '')) == target_id:
+                return node
+            for child in node.get('child_nodes', []):
+                result = search_nodes(child)
+                if result:
+                    return result
+            return None
+        
+        if not self.data or 'root_nodes' not in self.data:
+            return None
+        
+        for root_node in self.data['root_nodes']:
+            result = search_nodes(root_node)
+            if result:
+                return result
+        return None
+    
+    def update_node_info(self):
+        if self.selected_node:
+            # Format node information
+            info = f"Node ID: {self.selected_node.get('id', 'N/A')}\n"
+            if 'filling_name' in self.selected_node:
+                info += f"Type: {self.selected_node['filling_name']}\n"
+            if 'position' in self.selected_node:
+                pos = self.selected_node['position']
+                info += f"Position: ({pos[0]:.1f}, {pos[1]:.1f})\n"
+            
+            # Add any other properties you want to display
+            for key, value in self.selected_node.items():
+                if key not in ['id', 'filling_name', 'position', 'child_nodes']:
+                    info += f"{key}: {value}\n"
+            
+            self.node_info.setText(info)
+            self.node_info.setVisible(True)
+        else:
+            self.node_info.setVisible(False)
 
 def main():
     app = QApplication(sys.argv)
