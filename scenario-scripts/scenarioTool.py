@@ -4,7 +4,7 @@ import zipfile
 import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit)
+                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView)
 from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBrush
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
@@ -1063,23 +1063,28 @@ class GalaxyViewer(QWidget):
         # Create right side (node info) container
         info_container = QWidget()
         info_container.setFixedWidth(250)
-        info_container.setVisible(False)  # Hide initially
-        self.info_container = info_container  # Store reference
+        info_container.setVisible(False)
+        self.info_container = info_container
         
         info_layout = QVBoxLayout(info_container)
         info_layout.setContentsMargins(0, 5, 5, 5)
-        info_layout.setSpacing(0)  # Reduce spacing between elements
+        info_layout.setSpacing(0)
         
         # Create node info header
         info_header = QLabel("Node Details")
         info_header.setObjectName("nodeInfoHeader")
         info_layout.addWidget(info_header)
         
-        # Create node info display
-        self.node_info = QTextEdit()
+        # Create node info table
+        self.node_info = QTableWidget()
         self.node_info.setObjectName("nodeInfo")
-        self.node_info.setReadOnly(True)
-        self.node_info.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+        self.node_info.setColumnCount(2)
+        self.node_info.setHorizontalHeaderLabels(["Property", "Value"])
+        self.node_info.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.node_info.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.node_info.verticalHeader().setVisible(False)
+        self.node_info.setShowGrid(False)
+        self.node_info.itemChanged.connect(self._on_property_changed)
         info_layout.addWidget(self.node_info)
         
         # Add stretch at the bottom of info layout
@@ -1384,42 +1389,98 @@ class GalaxyViewer(QWidget):
     
     def update_node_info(self):
         if self.selected_node:
-            # Format node information
-            info = []  # Use list for better formatting
+            # Disconnect itemChanged signal while updating
+            self.node_info.itemChanged.disconnect(self._on_property_changed)
+            
+            # Clear existing items
+            self.node_info.setRowCount(0)
             
             # Add basic info
-            info.append(f"Node ID: {self.selected_node.get('id', 'N/A')}")
-            if 'filling_name' in self.selected_node:
-                info.append(f"Type: {self.selected_node['filling_name']}")
+            self._add_property_row("Node ID", str(self.selected_node.get('id', 'N/A')), editable=False)
+            
+            # Add position as separate X and Y coordinates
             if 'position' in self.selected_node:
                 pos = self.selected_node['position']
-                info.append(f"Position: ({pos[0]:.1f}, {pos[1]:.1f})")
+                self._add_property_row("Position X", f"{pos[0]:.1f}")
+                self._add_property_row("Position Y", f"{pos[1]:.1f}")
+            
+            # Add editable properties
+            if 'filling_name' in self.selected_node:
+                self._add_property_row("Type", self.selected_node['filling_name'])
             
             # Add other properties
             for key, value in self.selected_node.items():
                 if key not in ['id', 'filling_name', 'position', 'child_nodes']:
-                    info.append(f"{key}: {value}")
+                    self._add_property_row(key, str(value))
             
-            # Set text and adjust size
-            self.node_info.setText('\n'.join(info))
-            
-            # Show the container first
+            # Show the container
             self.info_container.setVisible(True)
             
-            # Use a timer to delay the height adjustment
-            QTimer.singleShot(50, lambda: self._adjust_info_height())
+            # Reconnect itemChanged signal
+            self.node_info.itemChanged.connect(self._on_property_changed)
             
-            logging.debug(f"Updated node info: {len(info)} lines")
+            # Adjust height to content
+            total_height = (self.node_info.rowHeight(0) * self.node_info.rowCount() + 
+                          self.node_info.horizontalHeader().height() + 2)
+            self.node_info.setFixedHeight(total_height)
+            
+            logging.debug(f"Updated node info table with {self.node_info.rowCount()} properties")
         else:
-            # Hide the container when no node is selected
             self.info_container.setVisible(False)
             logging.debug("Cleared node info")
 
-    def _adjust_info_height(self):
-        # Adjust height to content
-        doc_height = self.node_info.document().size().height()
-        self.node_info.setFixedHeight(int(doc_height + 10))  # Add small padding
-        self.info_container.update()
+    def _add_property_row(self, key, value, editable=True):
+        row = self.node_info.rowCount()
+        self.node_info.insertRow(row)
+        
+        # Add key (always non-editable)
+        key_item = QTableWidgetItem(key)
+        key_item.setFlags(key_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        self.node_info.setItem(row, 0, key_item)
+        
+        # Add value
+        value_item = QTableWidgetItem(value)
+        if not editable:
+            value_item.setFlags(value_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        self.node_info.setItem(row, 1, value_item)
+
+    def _on_property_changed(self, item):
+        if item.column() == 1:  # Value column
+            row = item.row()
+            key = self.node_info.item(row, 0).text()
+            new_value = item.text()
+            
+            try:
+                # Update the node data
+                if key == "Type":
+                    self.selected_node['filling_name'] = new_value
+                elif key == "Position X":
+                    x = float(new_value)
+                    self.selected_node['position'][0] = x
+                    self.node_positions[str(self.selected_node['id'])] = QPointF(
+                        x, self.selected_node['position'][1]
+                    )
+                    self.update()  # Redraw the view
+                elif key == "Position Y":
+                    y = float(new_value)
+                    self.selected_node['position'][1] = y
+                    self.node_positions[str(self.selected_node['id'])] = QPointF(
+                        self.selected_node['position'][0], y
+                    )
+                    self.update()  # Redraw the view
+                else:
+                    self.selected_node[key] = new_value
+                
+                logging.debug(f"Updated property {key} to {new_value}")
+            except ValueError:
+                # Restore the previous value if conversion fails
+                if key in ["Position X", "Position Y"]:
+                    pos = self.selected_node['position']
+                    if key == "Position X":
+                        item.setText(f"{pos[0]:.1f}")
+                    else:
+                        item.setText(f"{pos[1]:.1f}")
+                    logging.error(f"Invalid number format for {key}: {new_value}")
 
 def main():
     app = QApplication(sys.argv)
