@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit)
-from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF
+from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBrush
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
 import logging
@@ -1011,10 +1011,16 @@ class GalaxyViewer(QWidget):
         self.last_pos = None
         self.node_positions = {}  # Cache for node positions
         self.parent_child_connections = []  # Cache for parent-child connections
-        self.selected_node = None  # Store the currently selected node
+        self.selected_node = None
         
-        # Create layout
-        layout = QVBoxLayout(self)
+        # Create main layout
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Create left side (viewer) container
+        viewer_container = QWidget()
+        viewer_layout = QVBoxLayout(viewer_container)
+        viewer_layout.setContentsMargins(5, 5, 5, 5)
         
         # Create checkbox container
         checkbox_container = QWidget()
@@ -1050,16 +1056,38 @@ class GalaxyViewer(QWidget):
         checkbox_layout.addWidget(self.regular_lanes_checkbox)
         checkbox_layout.addStretch()
         
+        # Add checkbox container to viewer layout
+        viewer_layout.addWidget(checkbox_container)
+        viewer_layout.addStretch()
+        
+        # Create right side (node info) container
+        info_container = QWidget()
+        info_container.setFixedWidth(250)
+        info_container.setVisible(False)  # Hide initially
+        self.info_container = info_container  # Store reference
+        
+        info_layout = QVBoxLayout(info_container)
+        info_layout.setContentsMargins(0, 5, 5, 5)
+        info_layout.setSpacing(0)  # Reduce spacing between elements
+        
+        # Create node info header
+        info_header = QLabel("Node Details")
+        info_header.setObjectName("nodeInfoHeader")
+        info_layout.addWidget(info_header)
+        
         # Create node info display
         self.node_info = QTextEdit()
+        self.node_info.setObjectName("nodeInfo")
         self.node_info.setReadOnly(True)
-        self.node_info.setMaximumHeight(100)
-        self.node_info.setVisible(False)  # Hide initially
+        self.node_info.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+        info_layout.addWidget(self.node_info)
         
-        # Add widgets to layout
-        layout.addWidget(checkbox_container)
-        layout.addWidget(self.node_info)
-        layout.addStretch()
+        # Add stretch at the bottom of info layout
+        info_layout.addStretch(1)
+        
+        # Add containers to main layout
+        main_layout.addWidget(viewer_container, 1)
+        main_layout.addWidget(info_container, 0)
     
     def toggle_grid(self, state):
         self.show_grid = bool(state)
@@ -1324,9 +1352,16 @@ class GalaxyViewer(QWidget):
                     closest_node = node_data
                     closest_dist = dist
         
+        # Update selected node and info display
         self.selected_node = closest_node
         self.update_node_info()
         self.update()
+        
+        # Debug logging
+        if closest_node:
+            logging.debug(f"Selected node: {closest_node.get('id', 'N/A')}")
+        else:
+            logging.debug("No node selected")
     
     def find_node_by_id(self, target_id):
         def search_nodes(node):
@@ -1350,22 +1385,41 @@ class GalaxyViewer(QWidget):
     def update_node_info(self):
         if self.selected_node:
             # Format node information
-            info = f"Node ID: {self.selected_node.get('id', 'N/A')}\n"
+            info = []  # Use list for better formatting
+            
+            # Add basic info
+            info.append(f"Node ID: {self.selected_node.get('id', 'N/A')}")
             if 'filling_name' in self.selected_node:
-                info += f"Type: {self.selected_node['filling_name']}\n"
+                info.append(f"Type: {self.selected_node['filling_name']}")
             if 'position' in self.selected_node:
                 pos = self.selected_node['position']
-                info += f"Position: ({pos[0]:.1f}, {pos[1]:.1f})\n"
+                info.append(f"Position: ({pos[0]:.1f}, {pos[1]:.1f})")
             
-            # Add any other properties you want to display
+            # Add other properties
             for key, value in self.selected_node.items():
                 if key not in ['id', 'filling_name', 'position', 'child_nodes']:
-                    info += f"{key}: {value}\n"
+                    info.append(f"{key}: {value}")
             
-            self.node_info.setText(info)
-            self.node_info.setVisible(True)
+            # Set text and adjust size
+            self.node_info.setText('\n'.join(info))
+            
+            # Show the container first
+            self.info_container.setVisible(True)
+            
+            # Use a timer to delay the height adjustment
+            QTimer.singleShot(50, lambda: self._adjust_info_height())
+            
+            logging.debug(f"Updated node info: {len(info)} lines")
         else:
-            self.node_info.setVisible(False)
+            # Hide the container when no node is selected
+            self.info_container.setVisible(False)
+            logging.debug("Cleared node info")
+
+    def _adjust_info_height(self):
+        # Adjust height to content
+        doc_height = self.node_info.document().size().height()
+        self.node_info.setFixedHeight(int(doc_height + 10))  # Add small padding
+        self.info_container.update()
 
 def main():
     app = QApplication(sys.argv)
