@@ -205,50 +205,37 @@ class ScenarioTool:
             logging.error(f"Error creating scenario: {str(e)}", exc_info=True)
             return False
     
-    def load_template(self, template_name: str, source: str = 'user', expected_type: str = None) -> tuple[bool, str]:
-        """Load a predefined template into working directory"""
-        logging.debug(f"Loading template: name={template_name}, source={source}, expected_type={expected_type}")
-        
-        # Remove .scenario extension if present
-        template_name = template_name.replace('.scenario', '')
-        
-        # Search in all type directories
-        templates_dir = self.templates_dirs[source]
-        for type_dir in ['chart', 'generator']:
-            template_path = templates_dir / type_dir / f"{template_name}.scenario"
-            logging.debug(f"Looking for template at: {template_path}")
+    def load_template(self, template_name: str) -> tuple[bool, str]:
+        """Load a template by name."""
+        try:
+            # Determine the correct path based on the template name
+            parts = template_name.split(': ')
+            if len(parts) != 2:
+                logging.error(f"Invalid template format: {template_name}")
+                return False, "Invalid template format"
             
-            if template_path.exists():
-                try:
-                    # Check type before extracting
-                    detected_type = self.determine_scenario_type(template_path)
-                    message = ""
-                    
-                    if detected_type != type_dir:
-                        logging.warning(f"Template type mismatch: found in {type_dir} but is {detected_type}")
-                        # Try to relocate the template
-                        new_path, reloc_message = self.relocate_template(template_path, detected_type)
-                        message = reloc_message
-                        if new_path:
-                            template_path = new_path
-                            logging.info("Template relocated successfully")
-                        else:
-                            logging.warning("Failed to relocate template, continuing with original location")
-                    
-                    # Extract template
-                    result = self.extract_scenario(template_path)
-                    if result:
-                        logging.debug(f"Template loaded successfully as {detected_type} type")
-                        return True, message
-                    else:
-                        logging.error("Failed to extract template")
-                        return False, "Failed to extract template"
-                except Exception as e:
-                    logging.error(f"Error loading template: {e}", exc_info=True)
-                    return False, f"Error loading template: {str(e)}"
-        
-        logging.error(f"Template not found: {template_name}")
-        return False, f"Template not found: {template_name}"
+            source, name = parts
+            source_dir = self.templates_dirs.get(source.split('/')[0])
+            if not source_dir:
+                logging.error(f"Unknown source: {source}")
+                return False, "Unknown source"
+            
+            # Construct the full path to the template
+            template_path = source_dir / source.split('/')[1] / f"{name}.scenario"
+            
+            if not template_path.exists():
+                logging.error(f"Template not found: {template_name}")
+                return False, f"Template not found: {template_name}"
+            
+            # Extract the template
+            with zipfile.ZipFile(template_path, 'r') as zip_ref:
+                zip_ref.extractall(self.working_dirs['chart'])
+            
+            logging.info(f"Loaded template: {template_name}")
+            return True, "Template loaded successfully"
+        except Exception as e:
+            logging.error(f"Error loading template: {str(e)}")
+            return False, f"Error loading template: {str(e)}"
     
     def save_as_template(self, template_name: str) -> bool:
         """Save the current scenario as a template"""
@@ -577,37 +564,32 @@ class ScenarioToolGUI(QMainWindow):
                 self.drop_label.setText("Invalid script format")
     
     def load_template(self):
-        if self.template_list.currentItem():
-            full_name = self.template_list.currentItem().text()
-            logging.debug(f"Loading template: {full_name}")
+        """Load the selected template and update the galaxy viewer."""
+        selected_items = self.template_list.selectedItems()
+        if not selected_items:
+            logging.error("No template selected")
+            return
+
+        template_name = selected_items[0].text()
+        success, message = self.scenario_tool.load_template(template_name)
+
+        if success:
+            logging.info(f"Loaded template: {template_name}")
+            self.status_label.setText("Template loaded successfully")
             
+            # Load the galaxy map data
+            galaxy_chart_path = self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json"
             try:
-                # Handle both "source: name" and "source/type: name" formats
-                if '/' in full_name:
-                    source_type, name = full_name.split(': ')
-                    source, expected_type = source_type.split('/')
-                else:
-                    source, name = full_name.split(': ')
-                    expected_type = None
-                
-                logging.debug(f"Parsed template: source={source}, type={expected_type}, name={name}")
-                
-                # Load the template
-                success, message = self.scenario_tool.load_template(name, source, expected_type)
-                if success:
-                    status = f'Loaded template: {name}'
-                    if message:  # Add relocation message if present
-                        status += f'\n{message}'
-                    self.drop_label.setText(status)
-                    self.save_scenario_btn.setEnabled(True)
-                    # Update lists to reflect new type and possible relocation
-                    self.update_template_list()
-                    self.update_script_list()
-                else:
-                    self.drop_label.setText(message)
-            except ValueError as e:
-                self.drop_label.setText('Invalid template format')
-                logging.error(f"Error parsing template name: {e}")
+                with open(galaxy_chart_path, 'r') as file:
+                    galaxy_data = json.load(file)
+                    self.galaxy_viewer.set_data(galaxy_data)
+                    logging.info("Galaxy map loaded into viewer")
+            except Exception as e:
+                logging.error(f"Failed to load galaxy map: {str(e)}")
+                self.status_label.setText("Failed to load galaxy map")
+        else:
+            logging.error(message)
+            self.status_label.setText("Failed to load template")
     
     def save_scenario(self):
         if not self.name_input.text():
