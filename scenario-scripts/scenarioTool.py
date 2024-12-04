@@ -1020,14 +1020,17 @@ class GalaxyViewer(QWidget):
         def collect_positions(node):
             if 'id' in node and 'position' in node:
                 node_id = str(node['id'])  # Convert ID to string
-                pos = QPointF(node['position'][0], -node['position'][1])
+                pos = QPointF(node['position'][0], -node['position'][1] if node['position'][1] != -0.0 else 0.0)
                 self.node_positions[node_id] = pos
-                logging.debug(f"Collected position for node {node_id}: {pos.x()}, {pos.y()}")
+                # logging.debug(f"Collected position for node {node_id}: {pos.x()}, {pos.y()}")
                 
                 if 'child_nodes' in node:
                     for child in node['child_nodes']:
                         if 'id' in child and 'position' in child:
-                            self.parent_child_connections.append((node_id, str(child['id'])))
+                            connection = (node_id, str(child['id']))
+                            self.parent_child_connections.append(connection)
+                            # if node_id == '0' or str(child['id']) == '0':
+                            #     logging.debug(f"Added central star connection: {connection}")
                         collect_positions(child)
         
         self.node_positions.clear()
@@ -1037,10 +1040,9 @@ class GalaxyViewer(QWidget):
         for node in self.data['root_nodes']:
             collect_positions(node)
         
-        # Verify final positions
-        logging.debug(f"Total nodes collected: {len(self.node_positions)}")
-        central_pos = self.node_positions.get('0')  # Use string key
-        logging.debug(f"Final central star position: {central_pos.x() if central_pos else 'None'}, {central_pos.y() if central_pos else 'None'}")
+        # Log all connections involving the central star
+        central_connections = [conn for conn in self.parent_child_connections if '0' in conn]
+        # logging.debug(f"All central star connections: {central_connections}")
     
     def paintEvent(self, event):
         if not self.data:
@@ -1069,28 +1071,40 @@ class GalaxyViewer(QWidget):
     
     def draw_phase_lanes(self, painter):
         # Retrieve the central star position with a default value
-        central_pos = self.node_positions.get(0, QPointF(0.0, 0.0))  # Use integer key
-        logging.debug(f"Using central star position: {central_pos.x()}, {central_pos.y()}")
-
-        # Ensure central_pos is valid before using it
-        if central_pos is not None:
-            pass
-        else:
-            logging.warning("Central star position is None, using default (0.0, 0.0)")
-            central_pos = QPointF(0.0, 0.0)
+        central_pos = self.node_positions.get('0', QPointF(0.0, 0.0))
+        # logging.debug(f"Drawing phase lanes with central star at: {central_pos.x()}, {central_pos.y()}")
         
         # Draw parent-child connections as circles
         painter.setPen(QPen(QColor(255, 255, 0), 1/self.zoom))  # Yellow for parent-child
-        for parent_id, child_id in self.parent_child_connections:
-            parent_pos = self.node_positions.get(parent_id, central_pos if parent_id == '0' else None)
-            child_pos = self.node_positions.get(child_id, central_pos if child_id == '0' else None)
-            if parent_pos and child_pos:
-                # Calculate the radius for the circle using Euclidean distance
-                dx = parent_pos.x() - child_pos.x()
-                dy = parent_pos.y() - child_pos.y()
-                radius = (dx**2 + dy**2)**0.5
-                painter.drawEllipse(parent_pos, radius, radius)
         
+        # First, draw all connections involving the central star
+        central_connections = [(p, c) for p, c in self.parent_child_connections if p == '0' or c == '0']
+        # logging.debug(f"Processing central star connections: {central_connections}")
+        
+        for parent_id, child_id in central_connections:
+            other_id = child_id if parent_id == '0' else parent_id
+            other_pos = self.node_positions.get(other_id)
+            if other_pos:
+                # Calculate radius as distance from center to other node
+                diff = other_pos - central_pos
+                radius = (diff.x()**2 + diff.y()**2)**0.5
+                # logging.debug(f"Drawing central connection to {other_id} with radius {radius}")
+                if radius > 0:
+                    painter.drawEllipse(central_pos, radius, radius)
+                    # logging.debug(f"Drew circle from center with radius {radius}")
+        
+        # Then draw all other connections
+        for parent_id, child_id in self.parent_child_connections:
+            if parent_id != '0' and child_id != '0':  # Skip central connections as they're already drawn
+                parent_pos = self.node_positions.get(parent_id)
+                child_pos = self.node_positions.get(child_id)
+                if parent_pos and child_pos:
+                    diff = parent_pos - child_pos
+                    radius = (diff.x()**2 + diff.y()**2)**0.5
+                    if radius > 0:
+                        painter.drawEllipse(parent_pos, radius, radius)
+                        # logging.debug(f"Drew circle with radius {radius} at {parent_pos}")
+
         # Then draw phase lanes
         if 'phase_lanes' in self.data:
             for line in self.data['phase_lanes']:
@@ -1129,7 +1143,7 @@ class GalaxyViewer(QWidget):
         painter.setPen(QPen(QColor(100, 100, 100), 2/self.zoom))
         painter.drawLine(-grid_count * grid_size, 0, grid_count * grid_size, 0)
         painter.drawLine(0, -grid_count * grid_size, 0, grid_count * grid_size)
-        
+    
     def draw_nodes(self, painter):
         if 'root_nodes' not in self.data:
             return
@@ -1149,7 +1163,7 @@ class GalaxyViewer(QWidget):
         
         # Draw all nodes
         for node in all_nodes:
-            pos = QPointF(node['position'][0], -node['position'][1])
+            pos = self.node_positions.get(str(node['id']), QPointF(0.0, 0.0))
             
             # Set node appearance based on type
             node_size = 10  # Reduced base node size
