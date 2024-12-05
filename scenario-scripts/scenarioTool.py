@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea)
-from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF, QTimer
+from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF, QTimer, QRectF
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBrush
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
 import logging
@@ -1031,6 +1031,15 @@ class GalaxyViewer(QWidget):
         self.parent_child_connections = []  # Cache for parent-child connections
         self.selected_node = None
         
+        # Add selection variables
+        self.selected_nodes = set()  # Replace single selection with set
+        self.selection_start = None
+        self.selection_rect = None
+        self.shift_selecting = False
+        
+        # Set focus policy to receive keyboard events
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        
         # Create main layout
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -1250,9 +1259,14 @@ class GalaxyViewer(QWidget):
             self.draw_phase_lanes(painter)
             self.draw_nodes(painter)
             
-            # Highlight selected node
-            if self.selected_node:
-                node_id = str(self.selected_node.get('id', ''))
+            # Draw selection rectangle if active
+            if self.selection_rect is not None:
+                painter.setPen(QPen(QColor(255, 255, 255), 1/self.zoom, Qt.PenStyle.DashLine))
+                painter.setBrush(QBrush(QColor(255, 255, 255, 30)))
+                painter.drawRect(self.selection_rect)
+            
+            # Highlight all selected nodes
+            for node_id in self.selected_nodes:
                 if node_id in self.node_positions:
                     pos = self.node_positions[node_id]
                     painter.setPen(QPen(QColor(255, 255, 255), 2/self.zoom))
@@ -1332,52 +1346,52 @@ class GalaxyViewer(QWidget):
         self.zoom *= factor
         self.update()
     
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Shift:
+            self.shift_selecting = True
+        super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        if event.key() == Qt.Key.Key_Shift:
+            self.shift_selecting = False
+        super().keyReleaseEvent(event)
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.RightButton:
             self.dragging = True
             self.last_pos = event.pos()
         elif event.button() == Qt.MouseButton.LeftButton:
-            # Convert screen coordinates to world coordinates
-            screen_pos = event.pos()
-            world_pos = self.screen_to_world(screen_pos)
+            world_pos = self.screen_to_world(event.pos())
             
-            # Store potential drag start info
-            self.drag_start_pos = world_pos
+            # Check for node under cursor
+            clicked_node = self.find_node_at_position(world_pos)
             
-            # Find node under cursor
-            closest_node = None
-            closest_dist = float('inf')
-            node_radius = 10 / self.zoom
-            
-            for node_id, pos in self.node_positions.items():
-                dx = pos.x() - world_pos.x()
-                dy = pos.y() - world_pos.y()
-                dist = (dx * dx + dy * dy) ** 0.5
+            if clicked_node:
+                node_id = str(clicked_node.get('id'))
+                if self.shift_selecting:
+                    # Toggle node selection with shift
+                    if node_id in self.selected_nodes:
+                        self.selected_nodes.remove(node_id)
+                    else:
+                        self.selected_nodes.add(node_id)
+                else:
+                    # Select single node without shift
+                    if node_id not in self.selected_nodes:
+                        self.selected_nodes = {node_id}
                 
-                if dist < node_radius and dist < closest_dist:
-                    node_data = self.find_node_by_id(node_id)
-                    if node_data:
-                        closest_node = node_data
-                        closest_dist = dist
+                # Start potential drag
+                self.dragging_node = clicked_node
+                self.drag_start_pos = world_pos
+                self.drag_timer.start(200)
+            else:
+                # Start selection rectangle
+                if not self.shift_selecting:
+                    self.selected_nodes.clear()
+                self.selection_start = world_pos
+                self.selection_rect = QRectF(world_pos, world_pos)
             
-            if closest_node:
-                # Start drag timer
-                self.dragging_node = closest_node
-                self.drag_timer.start(200)  # 200ms hold to start dragging
-            
-            self.select_node_at_position(world_pos)
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.RightButton:
-            self.dragging = False
-        elif event.button() == Qt.MouseButton.LeftButton:
-            # Stop any ongoing node drag
-            if self.dragging_node:
-                self.drag_timer.stop()
-                if self.save_callback:
-                    self.save_callback(self.data)
-            self.dragging_node = None
-            self.drag_start_pos = None
+            self.update_node_info()
+            self.update()
 
     def mouseMoveEvent(self, event):
         if self.dragging and self.last_pos is not None:
@@ -1386,22 +1400,59 @@ class GalaxyViewer(QWidget):
             self.center_offset += QPointF(delta.x(), delta.y())
             self.last_pos = event.pos()
             self.update()
-        elif self.dragging_node:
-            # Move node
+        elif self.dragging_node and self.drag_start_pos:
+            # Move selected nodes
             world_pos = self.screen_to_world(event.pos())
-            node_id = str(self.dragging_node.get('id', ''))
             
-            # Update node position in data (flip Y back to data coordinates)
-            self.dragging_node['position'][0] = world_pos.x()
-            self.dragging_node['position'][1] = -world_pos.y()  # Flip Y for data storage
+            # Calculate movement delta
+            delta_x = world_pos.x() - self.drag_start_pos.x()
+            delta_y = world_pos.y() - self.drag_start_pos.y()
             
-            # Update cached position (keep Y flipped for display)
-            self.node_positions[node_id] = QPointF(world_pos.x(), world_pos.y())
+            # Move all selected nodes
+            for node_id in self.selected_nodes:
+                node = self.find_node_by_id(node_id)
+                if node:
+                    # Update position in data (remember to flip Y for storage)
+                    node['position'][0] = self.node_positions[node_id].x() + delta_x
+                    node['position'][1] = -(self.node_positions[node_id].y() + delta_y)
+                    
+                    # Update cached position (display coordinates)
+                    self.node_positions[node_id] = QPointF(
+                        node['position'][0],
+                        -node['position'][1]
+                    )
             
-            # Update node info panel if this is the selected node
-            if self.selected_node and str(self.selected_node.get('id')) == node_id:
-                self.update_node_info()
+            # Update drag start position for next move
+            self.drag_start_pos = world_pos
             
+            self.update_node_info()
+            self.update()
+        elif self.selection_start is not None:
+            # Update selection rectangle
+            world_pos = self.screen_to_world(event.pos())
+            self.selection_rect = QRectF(self.selection_start, world_pos).normalized()
+            
+            # Update selected nodes based on rectangle
+            for node_id, pos in self.node_positions.items():
+                if self.selection_rect.contains(pos):
+                    self.selected_nodes.add(node_id)
+                elif not self.shift_selecting:
+                    self.selected_nodes.discard(node_id)
+            
+            self.update_node_info()
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.RightButton:
+            self.dragging = False
+        elif event.button() == Qt.MouseButton.LeftButton:
+            if self.dragging_node:
+                self.drag_timer.stop()
+                if self.save_callback:
+                    self.save_callback(self.data)
+            self.dragging_node = None
+            self.selection_start = None
+            self.selection_rect = None
             self.update()
 
     def start_node_drag(self):
@@ -1466,61 +1517,42 @@ class GalaxyViewer(QWidget):
         return None
     
     def update_node_info(self):
-        if self.selected_node:
-            # Disconnect itemChanged signal while updating
-            self.node_info.itemChanged.disconnect(self._on_property_changed)
-            
-            # Clear existing items
-            self.node_info.setRowCount(0)
-            
-            # Add basic info
-            self._add_property_row("Node ID", str(self.selected_node.get('id', 'N/A')), editable=False)
-            
-            # Add position as separate X and Y coordinates (positive Y is up)
-            if 'position' in self.selected_node:
-                pos = self.selected_node['position']
-                self._add_property_row("Position X", f"{pos[0]:.1f}")
-                self._add_property_row("Position Y", f"{pos[1]:.1f}")  # Show raw Y value
-            
-            # Add editable properties
-            if 'filling_name' in self.selected_node:
-                self._add_property_row("Type", self.selected_node['filling_name'])
-            
-            # Add other properties
-            for key, value in self.selected_node.items():
-                if key not in ['id', 'filling_name', 'position', 'child_nodes']:
-                    self._add_property_row(key, str(value))
-            
-            # Show the container
-            self.info_container.setVisible(True)
-            
-            # Reconnect itemChanged signal
-            self.node_info.itemChanged.connect(self._on_property_changed)
-            
-            # Adjust height to content
-            total_height = (self.node_info.rowHeight(0) * self.node_info.rowCount() + 
-                          self.node_info.horizontalHeader().height() + 2)
-            self.node_info.setFixedHeight(total_height)
-            
-            logging.debug(f"Updated node info table with {self.node_info.rowCount()} properties")
-        else:
+        """Update node info panel for multiple selections"""
+        if not self.selected_nodes:
             self.info_container.setVisible(False)
-            logging.debug("Cleared node info")
-
-    def _add_property_row(self, key, value, editable=True):
-        row = self.node_info.rowCount()
-        self.node_info.insertRow(row)
+            return
         
-        # Add key (always non-editable)
-        key_item = QTableWidgetItem(key)
-        key_item.setFlags(key_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-        self.node_info.setItem(row, 0, key_item)
+        # Disconnect itemChanged signal while updating
+        self.node_info.itemChanged.disconnect(self._on_property_changed)
+        self.node_info.setRowCount(0)
         
-        # Add value
-        value_item = QTableWidgetItem(value)
-        if not editable:
-            value_item.setFlags(value_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-        self.node_info.setItem(row, 1, value_item)
+        # Get all selected nodes
+        nodes = [self.find_node_by_id(node_id) for node_id in self.selected_nodes]
+        nodes = [n for n in nodes if n is not None]
+        
+        if not nodes:
+            self.info_container.setVisible(False)
+            return
+        
+        # Show selection count
+        self._add_property_row("Selected", str(len(nodes)), editable=False)
+        
+        # Find common properties
+        common_props = set(nodes[0].keys())
+        for node in nodes[1:]:
+            common_props &= set(node.keys())
+        
+        # Show common properties with same values
+        for prop in sorted(common_props):
+            if prop not in ['child_nodes']:
+                values = {str(node[prop]) for node in nodes}
+                if len(values) == 1:
+                    self._add_property_row(prop, values.pop())
+                else:
+                    self._add_property_row(prop, "<multiple values>")
+        
+        self.info_container.setVisible(True)
+        self.node_info.itemChanged.connect(self._on_property_changed)
 
     def _on_property_changed(self, item):
         if item.column() == 1:  # Value column
@@ -1529,53 +1561,42 @@ class GalaxyViewer(QWidget):
             new_value = item.text()
             
             try:
-                # Update the node data
-                if key == "Type":
-                    self.selected_node['filling_name'] = new_value
-                    self.update()  # Redraw to update node color
-                elif key == "Position X":
-                    x = float(new_value)
-                    self.selected_node['position'][0] = x
-                    self.node_positions[str(self.selected_node['id'])] = QPointF(
-                        x, -self.selected_node['position'][1]  # Flip Y for display
-                    )
-                    self.update()
-                elif key == "Position Y":
-                    y = float(new_value)
-                    self.selected_node['position'][1] = y
-                    self.node_positions[str(self.selected_node['id'])] = QPointF(
-                        self.selected_node['position'][0], -y  # Flip Y for display
-                    )
-                    self.update()
-                else:
-                    # Try to convert to number if possible
-                    try:
-                        if '.' in new_value:
-                            new_value = float(new_value)
+                # Update all selected nodes
+                for node_id in self.selected_nodes:
+                    node = self.find_node_by_id(node_id)
+                    if node and key in node:
+                        if key == "Position X":
+                            x = float(new_value)
+                            node['position'][0] = x
+                            self.node_positions[node_id] = QPointF(
+                                x, -node['position'][1]
+                            )
+                        elif key == "Position Y":
+                            y = float(new_value)
+                            node['position'][1] = y
+                            self.node_positions[node_id] = QPointF(
+                                node['position'][0], -y
+                            )
                         else:
-                            new_value = int(new_value)
-                    except ValueError:
-                        pass  # Keep as string if not a number
-                    
-                    self.selected_node[key] = new_value
+                            # Try to convert to number if possible
+                            try:
+                                if '.' in new_value:
+                                    new_value = float(new_value)
+                                else:
+                                    new_value = int(new_value)
+                            except ValueError:
+                                pass
+                            node[key] = new_value
                 
-                # Save changes using callback
+                self.update()
+                
+                # Save changes
                 if self.save_callback:
                     self.save_callback(self.data)
-                    logging.debug(f"Saved changes to working copy after updating {key}")
-                else:
-                    logging.warning("No save callback provided")
                 
-                logging.debug(f"Updated property {key} to {new_value}")
-            except ValueError:
-                # Restore the previous value if conversion fails
-                if key in ["Position X", "Position Y"]:
-                    pos = self.selected_node['position']
-                    if key == "Position X":
-                        item.setText(f"{pos[0]:.1f}")
-                    else:
-                        item.setText(f"{pos[1]:.1f}")
-                    logging.error(f"Invalid number format for {key}: {new_value}")
+            except ValueError as e:
+                logging.error(f"Invalid value for {key}: {new_value}")
+                self.update_node_info()  # Refresh to show original values
 
     def _add_new_property(self):
         if not self.selected_node:
@@ -1610,6 +1631,40 @@ class GalaxyViewer(QWidget):
         # Save changes
         if self.save_callback:
             self.save_callback(self.data)
+
+    def find_node_at_position(self, world_pos):
+        closest_node = None
+        closest_dist = float('inf')
+        node_radius = 10 / self.zoom
+        
+        for node_id, pos in self.node_positions.items():
+            dx = pos.x() - world_pos.x()
+            dy = pos.y() - world_pos.y()
+            dist = (dx * dx + dy * dy) ** 0.5
+            
+            if dist < node_radius and dist < closest_dist:
+                node_data = self.find_node_by_id(node_id)
+                if node_data:
+                    closest_node = node_data
+                    closest_dist = dist
+        
+        return closest_node
+
+    def _add_property_row(self, key: str, value: str, editable: bool = True):
+        """Add a row to the node info table"""
+        row = self.node_info.rowCount()
+        self.node_info.insertRow(row)
+        
+        # Add key (property name)
+        key_item = QTableWidgetItem(key)
+        key_item.setFlags(key_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make key non-editable
+        self.node_info.setItem(row, 0, key_item)
+        
+        # Add value
+        value_item = QTableWidgetItem(value)
+        if not editable:
+            value_item.setFlags(value_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        self.node_info.setItem(row, 1, value_item)
 
 def main():
     app = QApplication(sys.argv)
