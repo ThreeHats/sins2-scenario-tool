@@ -565,6 +565,7 @@ class ScenarioToolGUI(QMainWindow):
                             with open(chart_path, 'r') as f:
                                 chart_data = json.load(f)
                             self.galaxy_viewer.set_data(chart_data)
+                            self.galaxy_viewer._collect_node_positions()
                             self.galaxy_viewer.update()
                     
                     else:
@@ -888,6 +889,11 @@ class ScenarioToolGUI(QMainWindow):
                 json.dump(modified_data, f, indent=4)
                 logging.debug("Successfully saved modified data")
             
+            # Update galaxy view
+            self.galaxy_viewer.set_data(modified_data)
+            self.galaxy_viewer._collect_node_positions()
+            self.galaxy_viewer.update()
+            
             self.drop_label.setText("Operation applied successfully!")
             logging.info("Operation completed successfully")
             
@@ -1123,7 +1129,13 @@ class GalaxyViewer(QWidget):
         self.node_info.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.node_info.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.node_info.setContentsMargins(0, 0, 0, 0)  # Set margins to 0 for the table
-        info_layout.addWidget(self.node_info)
+        
+        # Wrap the table in a scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setWidget(self.node_info)
+        info_layout.addWidget(scroll_area)
         
         # Add stretch at the bottom of info layout
         info_layout.addStretch(1)
@@ -1427,6 +1439,11 @@ class GalaxyViewer(QWidget):
             
             self.update_node_info()
             self.update()
+            
+            # Save changes
+            if self.save_callback:
+                self.save_callback(self.data)
+            
         elif self.selection_start is not None:
             # Update selection rectangle
             world_pos = self.screen_to_world(event.pos())
@@ -1542,21 +1559,7 @@ class GalaxyViewer(QWidget):
         for node in nodes[1:]:
             common_props &= set(node.keys())
         
-        # Show position first
-        if 'position' in common_props:
-            values_x = {node['position'][0] for node in nodes}
-            values_y = {node['position'][1] for node in nodes}
-            if len(values_x) == 1:
-                self._add_property_row("Position X", f"{values_x.pop():.1f}")
-            else:
-                self._add_property_row("Position X", "<multiple values>")
-            if len(values_y) == 1:
-                self._add_property_row("Position Y", f"{values_y.pop():.1f}")
-            else:
-                self._add_property_row("Position Y", "<multiple values>")
-            common_props.remove('position')
-        
-        # Show remaining common properties with same values
+        # Show common properties with same values
         for prop in sorted(common_props):
             if prop not in ['child_nodes']:
                 values = {str(node[prop]) for node in nodes}
@@ -1565,65 +1568,67 @@ class GalaxyViewer(QWidget):
                 else:
                     self._add_property_row(prop, "<multiple values>")
         
-        # Calculate and set the table height
-        header_height = self.node_info.horizontalHeader().height()
-        content_height = sum(self.node_info.rowHeight(i) for i in range(self.node_info.rowCount()))
-        total_height = header_height + content_height + 2  # Add small buffer for borders
-        
-        # Set fixed height directly
-        self.node_info.setFixedHeight(total_height)
         self.info_container.setVisible(True)
-        
-        # Reconnect signal
         self.node_info.itemChanged.connect(self._on_property_changed)
 
     def _on_property_changed(self, item):
-        if item.column() == 1:  # Value column
-            row = item.row()
-            key = self.node_info.item(row, 0).text()
-            new_value = item.text()
-            
-            try:
-                # Update all selected nodes
+        row = item.row()
+        key = self.node_info.item(row, 0).text()
+        value = self.node_info.item(row, 1).text()
+        
+        try:
+            # Handle position coordinates specially
+            if key == "Position X":
+                x = float(value)
                 for node_id in self.selected_nodes:
                     node = self.find_node_by_id(node_id)
-                    if node and key in node:
-                        if key == "Position X":
-                            x = float(new_value)
-                            node['position'][0] = x
-                            self.node_positions[node_id] = QPointF(
-                                x, -node['position'][1]
-                            )
-                        elif key == "Position Y":
-                            y = float(new_value)
-                            node['position'][1] = y
-                            self.node_positions[node_id] = QPointF(
-                                node['position'][0], -y
-                            )
-                        else:
-                            # Try to convert to number if possible
-                            try:
-                                if '.' in new_value:
-                                    new_value = float(new_value)
-                                else:
-                                    new_value = int(new_value)
-                            except ValueError:
-                                pass
-                            node[key] = new_value
-                
+                    if node:
+                        node['position'][0] = x
+                        self.node_positions[node_id] = QPointF(x, -node['position'][1])
                 self.update()
+            elif key == "Position Y":
+                y = float(value)
+                for node_id in self.selected_nodes:
+                    node = self.find_node_by_id(node_id)
+                    if node:
+                        node['position'][1] = y
+                        self.node_positions[node_id] = QPointF(node['position'][0], -y)
+                self.update()
+            else:
+                # For all other properties
+                # Try to convert to number if possible
+                try:
+                    if '.' in value:
+                        value = float(value)
+                    else:
+                        value = int(value)
+                except ValueError:
+                    pass  # Keep as string if not a number
                 
-                # Save changes
-                if self.save_callback:
-                    self.save_callback(self.data)
-                
-            except ValueError as e:
-                logging.error(f"Invalid value for {key}: {new_value}")
-                self.update_node_info()  # Refresh to show original values
+                # Update the property for all selected nodes
+                for node_id in self.selected_nodes:
+                    node = self.find_node_by_id(node_id)
+                    if node:
+                        if item.column() == 0:  # Property name changed
+                            old_key = [k for k, v in node.items() if str(v) == value][0]
+                            node[key] = node.pop(old_key)
+                        else:  # Value changed
+                            node[key] = value
+            
+            # Save changes
+            if self.save_callback:
+                self.save_callback(self.data)
+            
+        except (ValueError, KeyError) as e:
+            logging.error(f"Invalid value for {key}: {value}")
+            self.update_node_info()  # Refresh to show original values
 
     def _add_new_property(self):
-        if not self.selected_node:
+        if not self.selected_nodes:
             return
+        
+        # Disconnect itemChanged signal while updating
+        self.node_info.itemChanged.disconnect(self._on_property_changed)
         
         # Add a new row with empty property
         row = self.node_info.rowCount()
@@ -1631,14 +1636,19 @@ class GalaxyViewer(QWidget):
         
         # Add editable key
         key_item = QTableWidgetItem("new_property")
+        key_item.setFlags(key_item.flags() | Qt.ItemFlag.ItemIsEditable)  # Ensure key is editable
         self.node_info.setItem(row, 0, key_item)
         
         # Add editable value
         value_item = QTableWidgetItem("value")
+        value_item.setFlags(value_item.flags() | Qt.ItemFlag.ItemIsEditable)  # Ensure value is editable
         self.node_info.setItem(row, 1, value_item)
         
-        # Update the selected node data
-        self.selected_node["new_property"] = "value"
+        # Update all selected nodes
+        for node_id in self.selected_nodes:
+            node = self.find_node_by_id(node_id)
+            if node:
+                node["new_property"] = "value"
         
         # Calculate and set the table height based on content
         header_height = self.node_info.horizontalHeader().height()
@@ -1647,6 +1657,9 @@ class GalaxyViewer(QWidget):
         
         # Set fixed height directly
         self.node_info.setFixedHeight(total_height)
+        
+        # Reconnect signal
+        self.node_info.itemChanged.connect(self._on_property_changed)
         
         # Start editing the property name
         self.node_info.editItem(key_item)
@@ -1684,7 +1697,7 @@ class GalaxyViewer(QWidget):
         self.node_info.setItem(row, 0, key_item)
         
         # Add value
-        value_item = QTableWidgetItem(str(value))
+        value_item = QTableWidgetItem(value)
         if not editable:
             value_item.setFlags(value_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         self.node_info.setItem(row, 1, value_item)
