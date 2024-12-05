@@ -1214,7 +1214,8 @@ class GalaxyViewer(QWidget):
         def collect_positions(node):
             if 'id' in node and 'position' in node:
                 node_id = str(node['id'])  # Convert ID to string
-                pos = QPointF(node['position'][0], -node['position'][1] if node['position'][1] != -0.0 else 0.0)
+                # Flip Y for display (negative Y in data becomes positive Y in display)
+                pos = QPointF(node['position'][0], -node['position'][1])
                 self.node_positions[node_id] = pos
                 
                 if 'child_nodes' in node:
@@ -1390,11 +1391,11 @@ class GalaxyViewer(QWidget):
             world_pos = self.screen_to_world(event.pos())
             node_id = str(self.dragging_node.get('id', ''))
             
-            # Update node position in data
+            # Update node position in data (flip Y back to data coordinates)
             self.dragging_node['position'][0] = world_pos.x()
-            self.dragging_node['position'][1] = -world_pos.y()  # Convert to game coordinates
+            self.dragging_node['position'][1] = -world_pos.y()  # Flip Y for data storage
             
-            # Update cached position
+            # Update cached position (keep Y flipped for display)
             self.node_positions[node_id] = QPointF(world_pos.x(), world_pos.y())
             
             # Update node info panel if this is the selected node
@@ -1479,7 +1480,7 @@ class GalaxyViewer(QWidget):
             if 'position' in self.selected_node:
                 pos = self.selected_node['position']
                 self._add_property_row("Position X", f"{pos[0]:.1f}")
-                self._add_property_row("Position Y", f"{-pos[1]:.1f}")  # Display Y as negative
+                self._add_property_row("Position Y", f"{pos[1]:.1f}")  # Show raw Y value
             
             # Add editable properties
             if 'filling_name' in self.selected_node:
@@ -1536,14 +1537,14 @@ class GalaxyViewer(QWidget):
                     x = float(new_value)
                     self.selected_node['position'][0] = x
                     self.node_positions[str(self.selected_node['id'])] = QPointF(
-                        x, -self.selected_node['position'][1]
+                        x, -self.selected_node['position'][1]  # Flip Y for display
                     )
                     self.update()
                 elif key == "Position Y":
-                    y = -float(new_value)
+                    y = float(new_value)
                     self.selected_node['position'][1] = y
                     self.node_positions[str(self.selected_node['id'])] = QPointF(
-                        self.selected_node['position'][0], y
+                        self.selected_node['position'][0], -y  # Flip Y for display
                     )
                     self.update()
                 else:
@@ -1573,7 +1574,7 @@ class GalaxyViewer(QWidget):
                     if key == "Position X":
                         item.setText(f"{pos[0]:.1f}")
                     else:
-                        item.setText(f"{-pos[1]:.1f}")
+                        item.setText(f"{pos[1]:.1f}")
                     logging.error(f"Invalid number format for {key}: {new_value}")
 
     def _add_new_property(self):
