@@ -1542,7 +1542,21 @@ class GalaxyViewer(QWidget):
         for node in nodes[1:]:
             common_props &= set(node.keys())
         
-        # Show common properties with same values
+        # Show position first
+        if 'position' in common_props:
+            values_x = {node['position'][0] for node in nodes}
+            values_y = {node['position'][1] for node in nodes}
+            if len(values_x) == 1:
+                self._add_property_row("Position X", f"{values_x.pop():.1f}")
+            else:
+                self._add_property_row("Position X", "<multiple values>")
+            if len(values_y) == 1:
+                self._add_property_row("Position Y", f"{values_y.pop():.1f}")
+            else:
+                self._add_property_row("Position Y", "<multiple values>")
+            common_props.remove('position')
+        
+        # Show remaining common properties with same values
         for prop in sorted(common_props):
             if prop not in ['child_nodes']:
                 values = {str(node[prop]) for node in nodes}
@@ -1551,7 +1565,16 @@ class GalaxyViewer(QWidget):
                 else:
                     self._add_property_row(prop, "<multiple values>")
         
+        # Calculate and set the table height
+        header_height = self.node_info.horizontalHeader().height()
+        content_height = sum(self.node_info.rowHeight(i) for i in range(self.node_info.rowCount()))
+        total_height = header_height + content_height + 2  # Add small buffer for borders
+        
+        # Set fixed height directly
+        self.node_info.setFixedHeight(total_height)
         self.info_container.setVisible(True)
+        
+        # Reconnect signal
         self.node_info.itemChanged.connect(self._on_property_changed)
 
     def _on_property_changed(self, item):
@@ -1661,7 +1684,7 @@ class GalaxyViewer(QWidget):
         self.node_info.setItem(row, 0, key_item)
         
         # Add value
-        value_item = QTableWidgetItem(value)
+        value_item = QTableWidgetItem(str(value))
         if not editable:
             value_item.setFlags(value_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         self.node_info.setItem(row, 1, value_item)
