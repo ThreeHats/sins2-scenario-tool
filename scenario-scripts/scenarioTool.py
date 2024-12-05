@@ -1004,7 +1004,14 @@ class GUILogHandler(logging.Handler):
 class GalaxyViewer(QWidget):
     def __init__(self, parent=None, save_callback=None):
         super().__init__(parent)
-        self.save_callback = save_callback  # Store the save function
+        self.save_callback = save_callback
+        
+        # Add dragging state variables
+        self.dragging_node = None
+        self.drag_start_pos = None
+        self.drag_timer = QTimer()
+        self.drag_timer.setSingleShot(True)
+        self.drag_timer.timeout.connect(self.start_node_drag)
         
         # Add visibility flags first
         self.show_grid = True
@@ -1332,19 +1339,74 @@ class GalaxyViewer(QWidget):
             # Convert screen coordinates to world coordinates
             screen_pos = event.pos()
             world_pos = self.screen_to_world(screen_pos)
+            
+            # Store potential drag start info
+            self.drag_start_pos = world_pos
+            
+            # Find node under cursor
+            closest_node = None
+            closest_dist = float('inf')
+            node_radius = 10 / self.zoom
+            
+            for node_id, pos in self.node_positions.items():
+                dx = pos.x() - world_pos.x()
+                dy = pos.y() - world_pos.y()
+                dist = (dx * dx + dy * dy) ** 0.5
+                
+                if dist < node_radius and dist < closest_dist:
+                    node_data = self.find_node_by_id(node_id)
+                    if node_data:
+                        closest_node = node_data
+                        closest_dist = dist
+            
+            if closest_node:
+                # Start drag timer
+                self.dragging_node = closest_node
+                self.drag_timer.start(200)  # 200ms hold to start dragging
+            
             self.select_node_at_position(world_pos)
-    
+
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.RightButton:
             self.dragging = False
-    
+        elif event.button() == Qt.MouseButton.LeftButton:
+            # Stop any ongoing node drag
+            if self.dragging_node:
+                self.drag_timer.stop()
+                if self.save_callback:
+                    self.save_callback(self.data)
+            self.dragging_node = None
+            self.drag_start_pos = None
+
     def mouseMoveEvent(self, event):
         if self.dragging and self.last_pos is not None:
-            # Calculate the difference in position
+            # Pan view
             delta = event.pos() - self.last_pos
             self.center_offset += QPointF(delta.x(), delta.y())
             self.last_pos = event.pos()
-            self.update()  # Redraw the view
+            self.update()
+        elif self.dragging_node:
+            # Move node
+            world_pos = self.screen_to_world(event.pos())
+            node_id = str(self.dragging_node.get('id', ''))
+            
+            # Update node position in data
+            self.dragging_node['position'][0] = world_pos.x()
+            self.dragging_node['position'][1] = -world_pos.y()  # Convert to game coordinates
+            
+            # Update cached position
+            self.node_positions[node_id] = QPointF(world_pos.x(), world_pos.y())
+            
+            # Update node info panel if this is the selected node
+            if self.selected_node and str(self.selected_node.get('id')) == node_id:
+                self.update_node_info()
+            
+            self.update()
+
+    def start_node_drag(self):
+        """Called when drag timer expires to confirm node drag has started"""
+        if self.dragging_node:
+            logging.debug(f"Started dragging node {self.dragging_node.get('id')}")
     
     def screen_to_world(self, screen_pos):
         # Convert screen coordinates to world coordinates
@@ -1534,8 +1596,11 @@ class GalaxyViewer(QWidget):
         self.selected_node["new_property"] = "value"
         
         # Calculate and set the table height based on content
-        total_height = (self.node_info.rowHeight(0) * self.node_info.rowCount() + 
-                       self.node_info.horizontalHeader().height() + 2)
+        header_height = self.node_info.horizontalHeader().height()
+        content_height = sum(self.node_info.rowHeight(i) for i in range(self.node_info.rowCount()))
+        total_height = header_height + content_height + 2  # Add small buffer for borders
+        
+        # Set fixed height directly
         self.node_info.setFixedHeight(total_height)
         
         # Start editing the property name
