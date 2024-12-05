@@ -1534,11 +1534,8 @@ class GalaxyViewer(QWidget):
         self.selected_node["new_property"] = "value"
         
         # Calculate and set the table height based on content
-        header_height = self.node_info.horizontalHeader().height()
-        content_height = sum(self.node_info.rowHeight(i) for i in range(self.node_info.rowCount()))
-        total_height = header_height + content_height + 2  # Add small buffer for borders
-        
-        # Set fixed height directly
+        total_height = (self.node_info.rowHeight(0) * self.node_info.rowCount() + 
+                       self.node_info.horizontalHeader().height() + 2)
         self.node_info.setFixedHeight(total_height)
         
         # Start editing the property name
