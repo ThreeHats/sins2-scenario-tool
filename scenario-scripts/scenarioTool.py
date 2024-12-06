@@ -478,12 +478,19 @@ class ScenarioToolGUI(QMainWindow):
     
     def load_stylesheet(self):
         try:
-            style_path = Path("style.qss")
+            if getattr(sys, 'frozen', False):
+                # Running in PyInstaller bundle
+                base_path = Path(sys._MEIPASS)
+            else:
+                # Running in development
+                base_path = Path(__file__).parent
+            
+            style_path = base_path / "style.qss"
             if style_path.exists():
                 with open(style_path, 'r') as f:
                     self.setStyleSheet(f.read())
             else:
-                print("Warning: style.qss not found")
+                print(f"Warning: style.qss not found at {style_path}")
         except Exception as e:
             print(f"Error loading stylesheet: {e}")
     

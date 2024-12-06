@@ -7,8 +7,9 @@ import logging
 def main():
     app = QApplication(sys.argv)
     
-    # Check for updates
+    # Check for updates and download community files
     checker = VersionChecker()
+    checker.download_community_files()
     has_update, update_url = checker.check_for_updates()
     
     if has_update:

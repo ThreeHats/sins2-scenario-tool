@@ -24,8 +24,10 @@ class VersionChecker:
             response.raise_for_status()
             latest = response.json()
             
-            latest_version = latest['tag_name'].lstrip('v')
-            if version.parse(latest_version) > version.parse(self.current_version):
+            latest_version = ''.join(c for c in latest['tag_name'] if c.isdigit() or c == '.')
+            current_version = ''.join(c for c in self.current_version if c.isdigit() or c == '.')
+            
+            if version.parse(latest_version) > version.parse(current_version):
                 return True, latest['assets'][0]['browser_download_url']
             return False, None
             
@@ -50,3 +52,48 @@ class VersionChecker:
         except Exception as e:
             logging.error(f"Failed to download update: {e}")
             return False
+
+    def download_community_files(self):
+        """Download community files from GitHub repo"""
+        base_url = "https://api.github.com/repos/JustAnotherIdea/sins2-community-tools/contents/scenario-scripts/community"
+        try:
+            response = requests.get(base_url)
+            response.raise_for_status()
+            contents = response.json()
+            
+            community_dir = Path(__file__).parent / "community"
+            community_dir.mkdir(exist_ok=True)
+            
+            for item in contents:
+                if item['type'] == 'dir':
+                    self._download_directory(item['url'], community_dir / item['name'])
+                
+        except Exception as e:
+            logging.error(f"Failed to download community files: {e}")
+
+    def _download_directory(self, url: str, target_dir: Path):
+        """Recursively download directory contents"""
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            contents = response.json()
+            
+            target_dir.mkdir(exist_ok=True)
+            
+            for item in contents:
+                if item['type'] == 'dir':
+                    self._download_directory(item['url'], target_dir / item['name'])
+                else:
+                    self._download_file(item['download_url'], target_dir / item['name'])
+                
+        except Exception as e:
+            logging.error(f"Failed to download directory {url}: {e}")
+
+    def _download_file(self, url: str, target_path: Path):
+        """Download a single file"""
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            target_path.write_bytes(response.content)
+        except Exception as e:
+            logging.error(f"Failed to download file {url}: {e}")
