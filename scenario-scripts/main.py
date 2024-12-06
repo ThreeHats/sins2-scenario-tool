@@ -13,8 +13,14 @@ def main():
     
     app = QApplication(sys.argv)
     
-    # Only download community files here
+    # Load and apply stylesheet globally
     checker = VersionChecker()
+    style_path = checker._get_resource_path('style.qss')
+    if style_path.exists():
+        with open(style_path, 'r') as f:
+            app.setStyleSheet(f.read())
+    
+    # Download community files
     checker.download_community_files()
     
     # Continue with normal startup

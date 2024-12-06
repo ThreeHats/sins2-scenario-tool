@@ -311,6 +311,7 @@ class ScenarioTool:
             logging.error(f"Failed to relocate template: {e}")
             return None, message
 
+
 class ScenarioToolGUI(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -1003,13 +1004,19 @@ class ScenarioToolGUI(QMainWindow):
     def check_for_updates(self):
         has_update, update_url = self.version_checker.check_for_updates()
         if has_update:
-            reply = QMessageBox.question(
-                self,
-                'Update Available',
-                'A new version is available. Would you like to update now?',
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply == QMessageBox.StandardButton.Yes:
+            msg = QMessageBox(self)
+            msg.setWindowTitle('Update Available')
+            msg.setText('A new version is available. Would you like to update now?')
+            msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            
+            # Remove icon spacing
+            layout = msg.layout()
+            layout.setSpacing(0)
+            # if layout.itemAt(0):  # This is typically the icon layout
+                # layout.itemAt(0).setSpacing(0)
+                # layout.setContentsMargins(0, 10, 0, 10)
+            
+            if msg.exec() == QMessageBox.StandardButton.Yes:
                 self.version_checker.download_update(update_url)
 
 class GUILogHandler(logging.Handler):

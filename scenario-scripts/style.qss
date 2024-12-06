@@ -9,6 +9,33 @@ QLabel {
     min-width: 100px;
 }
 
+/* Add QMessageBox styling */
+QMessageBox {
+    background-color: #2b2b2b;
+    min-width: 400px;
+}
+
+QMessageBox QLabel {
+    color: #ffffff;
+    min-width: 400px;
+    padding: 20px;
+    qproperty-wordWrap: true;
+}
+
+QMessageBox QPushButton {
+    background-color: #0d47a1;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 80px;
+}
+
+QMessageBox QPushButton:hover {
+    background-color: #1565c0;
+}
+
 QPushButton {
     background-color: #0d47a1;
     color: white;
