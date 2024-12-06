@@ -40,13 +40,21 @@ class VersionChecker:
             response = requests.get(url, stream=True)
             response.raise_for_status()
             
-            update_path = Path(self.app_dir) / "update.exe"
+            # Use a more specific temp directory that we control
+            temp_dir = Path(self.app_dir) / "temp"
+            temp_dir.mkdir(exist_ok=True)
+            update_path = temp_dir / "update.exe"
+            
             with open(update_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
             
             # Launch updater and exit current process
             os.startfile(update_path)
+            try:
+                temp_dir.unlink(missing_ok=True)
+            except:
+                pass
             sys.exit(0)
             
         except Exception as e:
