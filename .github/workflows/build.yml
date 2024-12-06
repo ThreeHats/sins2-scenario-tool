@@ -20,6 +20,7 @@ jobs:
       run: |
         cd scenario-scripts
         python -m pip install --upgrade pip
+        python -m pip uninstall -y pathlib
         pip install -r requirements.txt
         pip install pyinstaller
     
@@ -32,7 +33,7 @@ jobs:
     - name: Build with PyInstaller
       run: |
         cd scenario-scripts
-        pyinstaller --onefile --windowed --name scenario-tool main.py
+        pyinstaller scenario-tool.spec
     
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
