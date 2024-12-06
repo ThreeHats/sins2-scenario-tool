@@ -4,13 +4,14 @@ import zipfile
 import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea)
+                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea, QMessageBox)
 from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF, QTimer, QRectF
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBrush
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
 import logging
 import time
 from typing import Optional, List, Dict, Any
+from version_checker import VersionChecker
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -317,6 +318,10 @@ class ScenarioToolGUI(QMainWindow):
         
         # Open in full screen
         self.showMaximized()
+        
+        # Add version checker
+        self.version_checker = VersionChecker()
+        self.check_for_updates()
     
     def init_ui(self):
         self.setWindowTitle('Sins 2 Scenario Tool')
@@ -985,6 +990,18 @@ class ScenarioToolGUI(QMainWindow):
             logging.debug("Saved galaxy data to working copy")
         except Exception as e:
             logging.error(f"Failed to save galaxy data: {e}")
+
+    def check_for_updates(self):
+        has_update, update_url = self.version_checker.check_for_updates()
+        if has_update:
+            reply = QMessageBox.question(
+                self,
+                'Update Available',
+                'A new version is available. Would you like to update now?',
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.version_checker.download_update(update_url)
 
 class GUILogHandler(logging.Handler):
     def __init__(self, log_widget):

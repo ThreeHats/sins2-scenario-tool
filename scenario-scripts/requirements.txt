@@ -1,2 +1,4 @@
 PyQt6>=6.0.0
+requests>=2.31.0
 pathlib>=1.0.1
+packaging>=23.1
