@@ -18,6 +18,12 @@ class VersionChecker:
             return Path(sys._MEIPASS)
         return Path(__file__).parent
 
+    def _get_resource_path(self, resource_name: str) -> Path:
+        """Get the appropriate path for a resource file"""
+        if getattr(sys, 'frozen', False):
+            return Path(sys._MEIPASS) / resource_name
+        return Path(__file__).parent / resource_name
+
     def check_for_updates(self):
         try:
             response = requests.get(self.github_api)

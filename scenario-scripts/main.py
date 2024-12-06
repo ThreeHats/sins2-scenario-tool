@@ -7,22 +7,9 @@ import logging
 def main():
     app = QApplication(sys.argv)
     
-    # Check for updates and download community files
+    # Only download community files here
     checker = VersionChecker()
     checker.download_community_files()
-    has_update, update_url = checker.check_for_updates()
-    
-    if has_update:
-        reply = QMessageBox.question(
-            None, 
-            'Update Available',
-            'A new version is available. Would you like to update now?',
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
-        if reply == QMessageBox.StandardButton.Yes:
-            checker.download_update(update_url)
-            return
     
     # Continue with normal startup
     window = ScenarioToolGUI()

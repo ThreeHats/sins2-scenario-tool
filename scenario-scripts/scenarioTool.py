@@ -308,10 +308,17 @@ class ScenarioTool:
 class ScenarioToolGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Scenario Tool")
+        self.version_checker = VersionChecker()
         self.scenario_tool = ScenarioTool()
-        self.where_clauses = []  # Initialize the where_clauses list
+        self.where_clauses = []
+        
+        # Load stylesheet first
+        self.load_stylesheet()
+        
+        # Then initialize UI
         self.init_ui()
+        
+        # Setup remaining components
         self.setup_file_watchers()
         self.update_template_list()
         self.update_script_list()
@@ -319,8 +326,6 @@ class ScenarioToolGUI(QMainWindow):
         # Open in full screen
         self.showMaximized()
         
-        # Add version checker
-        self.version_checker = VersionChecker()
         self.check_for_updates()
     
     def init_ui(self):
@@ -466,8 +471,6 @@ class ScenarioToolGUI(QMainWindow):
         # Add both sides to main layout
         main_layout.addWidget(options_widget, 3)  # 30% width
         main_layout.addWidget(self.galaxy_viewer, 7)  # 70% width
-        
-        self.load_stylesheet()
     
     def update_run_button_state(self):
         """Enable run button only when a script is selected and a scenario is loaded"""
@@ -478,21 +481,14 @@ class ScenarioToolGUI(QMainWindow):
     
     def load_stylesheet(self):
         try:
-            if getattr(sys, 'frozen', False):
-                # Running in PyInstaller bundle
-                base_path = Path(sys._MEIPASS)
-            else:
-                # Running in development
-                base_path = Path(__file__).parent
-            
-            style_path = base_path / "style.qss"
+            style_path = self.version_checker._get_resource_path('style.qss')
             if style_path.exists():
                 with open(style_path, 'r') as f:
                     self.setStyleSheet(f.read())
             else:
-                print(f"Warning: style.qss not found at {style_path}")
+                logging.warning(f"Warning: style.qss not found at {style_path}")
         except Exception as e:
-            print(f"Error loading stylesheet: {e}")
+            logging.error(f"Error loading stylesheet: {e}")
     
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasUrls():
