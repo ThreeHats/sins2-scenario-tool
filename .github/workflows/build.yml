@@ -18,6 +18,7 @@ jobs:
     
     - name: Install dependencies
       run: |
+        cd scenario-scripts
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
@@ -26,11 +27,12 @@ jobs:
       run: |
         $version = "${{ github.event.release.tag_name }}"
         $version = $version.TrimStart("v")
-        (Get-Content src/version_checker.py) -replace 'self.current_version = ".*"', "self.current_version = `"$version`"" | Set-Content src/version_checker.py
+        (Get-Content scenario-scripts/version_checker.py) -replace 'self.current_version = ".*"', "self.current_version = `"$version`"" | Set-Content scenario-scripts/version_checker.py
     
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --windowed --name scenario-tool src/main.py
+        cd scenario-scripts
+        pyinstaller --onefile --windowed --name scenario-tool main.py
     
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
@@ -38,6 +40,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./dist/scenario-tool.exe
+        asset_path: ./scenario-scripts/dist/scenario-tool.exe
         asset_name: scenario-tool.exe
         asset_content_type: application/octet-stream 
