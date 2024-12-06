@@ -15,7 +15,7 @@ class VersionChecker:
     def _get_app_directory(self):
         """Get the appropriate app directory based on whether we're frozen"""
         if getattr(sys, 'frozen', False):
-            return Path(sys._MEIPASS)
+            return Path(sys.executable).parent
         return Path(__file__).parent
 
     def _get_resource_path(self, resource_name: str) -> Path:
@@ -71,23 +71,29 @@ class VersionChecker:
         """Download community files from GitHub repo"""
         base_url = "https://api.github.com/repos/JustAnotherIdea/sins2-community-tools/contents/scenario-scripts/community"
         try:
+            logging.info(f"Attempting to download community files from: {base_url}")
             response = requests.get(base_url)
             response.raise_for_status()
             contents = response.json()
             
-            community_dir = Path(__file__).parent / "community"
+            community_dir = self._get_app_directory() / "community"
+            logging.info(f"Creating community directory at: {community_dir}")
             community_dir.mkdir(exist_ok=True)
             
             for item in contents:
                 if item['type'] == 'dir':
+                    logging.info(f"Found directory: {item['name']}")
                     self._download_directory(item['url'], community_dir / item['name'])
-                
+                else:
+                    logging.info(f"Skipping non-directory item: {item['name']}")
+                    
         except Exception as e:
-            logging.error(f"Failed to download community files: {e}")
+            logging.error(f"Failed to download community files: {e}", exc_info=True)
 
     def _download_directory(self, url: str, target_dir: Path):
         """Recursively download directory contents"""
         try:
+            logging.info(f"Downloading directory from {url} to {target_dir}")
             response = requests.get(url)
             response.raise_for_status()
             contents = response.json()
@@ -96,18 +102,22 @@ class VersionChecker:
             
             for item in contents:
                 if item['type'] == 'dir':
+                    logging.info(f"Found subdirectory: {item['name']}")
                     self._download_directory(item['url'], target_dir / item['name'])
                 else:
+                    logging.info(f"Downloading file: {item['name']}")
                     self._download_file(item['download_url'], target_dir / item['name'])
                 
         except Exception as e:
-            logging.error(f"Failed to download directory {url}: {e}")
+            logging.error(f"Failed to download directory {url}: {e}", exc_info=True)
 
     def _download_file(self, url: str, target_path: Path):
         """Download a single file"""
         try:
+            logging.info(f"Downloading file from {url} to {target_path}")
             response = requests.get(url)
             response.raise_for_status()
             target_path.write_bytes(response.content)
+            logging.info(f"Successfully downloaded: {target_path.name}")
         except Exception as e:
-            logging.error(f"Failed to download file {url}: {e}")
+            logging.error(f"Failed to download file {url}: {e}", exc_info=True)

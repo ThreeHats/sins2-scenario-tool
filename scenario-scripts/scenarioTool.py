@@ -17,12 +17,18 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 class ScenarioTool:
     def __init__(self):
+        # Get base directory
+        if getattr(sys, 'frozen', False):
+            base_dir = Path(sys.executable).parent
+        else:
+            base_dir = Path(__file__).parent
+        
         # Base directories
-        self.output_dir = Path("output")
+        self.output_dir = base_dir / "output"
         
         # User and community directories
-        self.user_dir = Path("user")
-        self.community_dir = Path("community")
+        self.user_dir = base_dir / "user"
+        self.community_dir = base_dir / "community"
         
         # Template directories
         self.templates_dirs = {

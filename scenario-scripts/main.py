@@ -5,6 +5,12 @@ import sys
 import logging
 
 def main():
+    # Setup logging first
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    
     app = QApplication(sys.argv)
     
     # Only download community files here

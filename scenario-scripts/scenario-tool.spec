@@ -5,7 +5,11 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('style.qss', '.')],
+    datas=[
+        ('style.qss', '.'),
+        ('community', 'community'),
+        ('user', 'user')
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
