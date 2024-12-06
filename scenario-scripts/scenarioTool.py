@@ -104,26 +104,41 @@ class ScenarioTool:
         return None
     
     def extract_scenario(self, scenario_path: Path) -> bool:
-        """Extract .scenario file to appropriate working directory"""
+        """Extract a scenario file and determine its type"""
         try:
-            # Determine scenario type
-            self.current_type = self.determine_scenario_type(scenario_path)
-            if not self.current_type:
-                print("Unknown scenario type")
-                return False
+            # Clear working directories
+            for working_dir in self.working_dirs.values():
+                if working_dir.exists():
+                    shutil.rmtree(working_dir)
+                    working_dir.mkdir(parents=True)
             
-            # Clear working directory
-            working_dir = self.working_dirs[self.current_type]
-            for file in working_dir.glob("*"):
-                file.unlink()
-            
-            # Extract files
+            # Extract scenario
             with zipfile.ZipFile(scenario_path, 'r') as zip_ref:
-                zip_ref.extractall(working_dir)
-            
-            return True
+                # Check contents to determine type
+                contents = zip_ref.namelist()
+                
+                # Check for required files
+                has_required = all(f in contents for f in self.required_files)
+                if not has_required:
+                    logging.error("Missing required scenario files")
+                    return False
+                
+                # Determine type based on specific files
+                if "galaxy_chart.json" in contents:
+                    self.current_type = 'chart'
+                elif "galaxy_chart_generator_params.json" in contents:
+                    self.current_type = 'generator'
+                else:
+                    logging.error("Unknown scenario type")
+                    return False
+                
+                # Extract to appropriate working directory
+                zip_ref.extractall(self.working_dirs[self.current_type])
+                logging.info(f"Extracted scenario as type: {self.current_type}")
+                return True
+                
         except Exception as e:
-            print(f"Error extracting scenario: {e}")
+            logging.error(f"Error extracting scenario: {e}")
             return False
     
     def apply_script(self, script_name: str) -> tuple[bool, str, float]:
@@ -310,7 +325,6 @@ class ScenarioTool:
             message = f"Failed to move template: {str(e)}"
             logging.error(f"Failed to relocate template: {e}")
             return None, message
-
 
 class ScenarioToolGUI(QMainWindow):
     def __init__(self):
@@ -607,44 +621,42 @@ class ScenarioToolGUI(QMainWindow):
                 self.drop_label.setText("Invalid script format")
     
     def load_template(self):
-        """Load the selected template and update the galaxy viewer."""
-        selected_items = self.template_list.selectedItems()
-        if not selected_items:
-            logging.error("No template selected")
+        selected = self.template_list.currentItem()
+        if not selected:
             return
-
-        template_name = selected_items[0].text()
-        success, message = self.scenario_tool.load_template(template_name)
-
-        if success:
-            logging.info(f"Loaded template: {template_name}")
-            self.status_label.setText("Template loaded successfully")
-            self.drop_label.setText(f"Loaded template: {template_name}")
+        
+        # Parse the template path from the selected item
+        template_info = selected.text().split(': ', 1)
+        if len(template_info) != 2:
+            return
+        
+        source_path = template_info[0].split('/')
+        template_name = template_info[1]
+        
+        # Determine the correct template directory
+        if len(source_path) == 1:  # No type subdirectory
+            template_dir = self.scenario_tool.templates_dirs[source_path[0]]
+            template_path = template_dir / f"{template_name}.scenario"
+        else:  # Has type subdirectory
+            template_dir = self.scenario_tool.templates_dirs[source_path[0]] / source_path[1]
+            template_path = template_dir / f"{template_name}.scenario"
+        
+        if self.scenario_tool.extract_scenario(template_path):
+            self.drop_label.setText(f'Loaded template: {template_name}')
+            # Enable buttons
+            self.run_script_btn.setEnabled(True)
+            self.save_scenario_btn.setEnabled(True)
+            self.apply_operation_btn.setEnabled(True)
             
-            # Determine scenario type
-            scenario_type = self.scenario_tool.determine_scenario_type(template_name)
+            # Initialize galaxy viewer if it's a chart scenario
+            if self.scenario_tool.current_type == 'chart':
+                chart_path = self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json"
+                if chart_path.exists():
+                    with open(chart_path) as f:
+                        chart_data = json.load(f)
+                    self.galaxy_viewer.set_data(chart_data)
             
-            if scenario_type == 'chart':
-                # Load the galaxy map data
-                galaxy_chart_path = self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json"
-                try:
-                    with open(galaxy_chart_path, 'r') as file:
-                        galaxy_data = json.load(file)
-                        self.galaxy_viewer.set_data(galaxy_data)
-                        logging.info("Galaxy map loaded into viewer")
-                except Exception as e:
-                    logging.error(f"Failed to load galaxy map: {str(e)}")
-                    self.status_label.setText("Failed to load galaxy map")
-            elif scenario_type == 'generator':
-                # Display message for generator scenarios
-                self.galaxy_viewer.clear_and_set_message("Generator view not supported")
-                logging.info("Generator scenario loaded, view not supported")
-            
-            # Update available scripts
-            self.update_script_list()
-        else:
-            logging.error(message)
-            self.status_label.setText("Failed to load template")
+            logging.info(f"Successfully loaded template: {template_path}")
     
     def save_scenario(self):
         if not self.name_input.text():
@@ -1012,9 +1024,6 @@ class ScenarioToolGUI(QMainWindow):
             # Remove icon spacing
             layout = msg.layout()
             layout.setSpacing(0)
-            # if layout.itemAt(0):  # This is typically the icon layout
-                # layout.itemAt(0).setSpacing(0)
-                # layout.setContentsMargins(0, 10, 0, 10)
             
             if msg.exec() == QMessageBox.StandardButton.Yes:
                 self.version_checker.download_update(update_url)
