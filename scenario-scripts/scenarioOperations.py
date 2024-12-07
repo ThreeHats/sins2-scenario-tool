@@ -7,11 +7,11 @@ from enum import Enum
 class Operation(Enum):
     ADD = "add"
     CHANGE = "change"
-    REMOVE = "remove"
     MULTIPLY = "multiply"
     DIVIDE = "divide"
     SCALE = "scale"
-    MOVE = "move"
+    REMOVE = "remove_node"
+    MOVE = "set_parent_node"
     ADD_PROPERTY = "add_property"
 
 class Comparison(Enum):

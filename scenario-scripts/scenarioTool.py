@@ -4,7 +4,7 @@ import zipfile
 import shutil
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea, QMessageBox)
+                            QPushButton, QLabel, QListWidget, QFileDialog, QHBoxLayout, QLineEdit, QSizePolicy, QComboBox, QCheckBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea, QMessageBox, QGroupBox)
 from PyQt6.QtCore import Qt, QMimeData, QFileSystemWatcher, QPointF, QTimer, QRectF
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter, QPen, QColor, QBrush
 from scenarioOperations import Operation, Comparison, LogicalOp, Filter, FilterGroup, apply_operation
@@ -300,6 +300,8 @@ class ScenarioTool:
         except Exception as e:
             print(f"Error saving template: {e}")
             return False
+
+
     
     def relocate_template(self, template_path: Path, correct_type: str) -> tuple[Path | None, str]:
         """Move template to the correct type directory"""
@@ -325,6 +327,7 @@ class ScenarioTool:
             message = f"Failed to move template: {str(e)}"
             logging.error(f"Failed to relocate template: {e}")
             return None, message
+
 
 class ScenarioToolGUI(QMainWindow):
     def __init__(self):
@@ -361,20 +364,24 @@ class ScenarioToolGUI(QMainWindow):
         options_widget = QWidget()
         options_layout = QVBoxLayout(options_widget)
         
-        # Add all existing widgets to options_layout
-        self.drop_label = QLabel('Drop .scenario file here\nNo file loaded')
-        self.drop_label.setObjectName("dropLabel")
-        self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.drop_label.setMinimumHeight(100)
-        options_layout.addWidget(self.drop_label)
+        # Combined status/drop label
+        self.status_label = QLabel('Drop .scenario file here\nNo file loaded')
+        self.status_label.setObjectName("dropLabel")  # Keep dropLabel style
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setMinimumHeight(100)
+        options_layout.addWidget(self.status_label)
         
         self.script_list = QListWidget()
+        self.script_list.setObjectName("scriptList")
         self.update_script_list()
+        self.script_list.setMaximumHeight(100)
         options_layout.addWidget(QLabel('Available Scripts:'))
         options_layout.addWidget(self.script_list)
         
         self.template_list = QListWidget()
+        self.template_list.setObjectName("templateList")
         self.update_template_list()
+        self.template_list.setMaximumHeight(100)
         options_layout.addWidget(QLabel('Available Templates:'))
         options_layout.addWidget(self.template_list)
         
@@ -417,33 +424,27 @@ class ScenarioToolGUI(QMainWindow):
         dir_buttons_layout.addWidget(default_btn)
         options_layout.addLayout(dir_buttons_layout)
         
+        action_buttons_layout = QHBoxLayout()
+        
         self.run_script_btn = QPushButton('Run Selected Script')
         self.run_script_btn.clicked.connect(self.run_script)
         self.run_script_btn.setEnabled(False)
-        options_layout.addWidget(self.run_script_btn)
+        action_buttons_layout.addWidget(self.run_script_btn)
         
         self.load_template_btn = QPushButton('Load Selected Template')
         self.load_template_btn.clicked.connect(self.load_template)
-        options_layout.addWidget(self.load_template_btn)
+        action_buttons_layout.addWidget(self.load_template_btn)
         
         self.save_scenario_btn = QPushButton('Save Scenario')
         self.save_scenario_btn.clicked.connect(self.save_scenario)
         self.save_scenario_btn.setEnabled(False)
-        options_layout.addWidget(self.save_scenario_btn)
+        action_buttons_layout.addWidget(self.save_scenario_btn)
         
-        self.setAcceptDrops(True)
-        
-        self.status_label = QLabel()
-        self.status_label.setObjectName("statusLabel")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_label.setText("Ready")
-        options_layout.addWidget(self.status_label)
+        options_layout.addLayout(action_buttons_layout)
         
         self.log_display = QListWidget()
-        self.log_display.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Expanding
-        )
+        self.log_display.setObjectName("logDisplay")
+        self.log_display.setMaximumHeight(100)
         options_layout.addWidget(self.log_display)
         
         self.log_handler = GUILogHandler(self.log_display)
@@ -452,10 +453,12 @@ class ScenarioToolGUI(QMainWindow):
         
         self.script_list.itemSelectionChanged.connect(self.update_run_button_state)
         
-        # Operation Controls
-        operation_group = QWidget()
-        operation_layout = QVBoxLayout(operation_group)
-
+        # Create operation group
+        operation_group = QGroupBox("Operations")
+        operation_layout = QVBoxLayout()
+        operation_group.setLayout(operation_layout)
+        
+        # Operation line (combo and inputs)
         operation_line = QHBoxLayout()
         self.operation_combo = QComboBox()
         self.operation_combo.addItems([op.value for op in Operation])
@@ -463,6 +466,9 @@ class ScenarioToolGUI(QMainWindow):
         self.target_property.setPlaceholderText("property to change")
         self.operation_value = QLineEdit()
         self.operation_value.setPlaceholderText("new value")
+
+        # Set the operation group to expand
+        operation_group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         self.operation_combo.currentTextChanged.connect(self.update_operation_placeholders)
         
@@ -471,19 +477,38 @@ class ScenarioToolGUI(QMainWindow):
         operation_line.addWidget(QLabel("to"))
         operation_line.addWidget(self.operation_value)
         operation_layout.addLayout(operation_line)
-
-        self.where_clauses_widget = QWidget()
-        self.where_clauses_layout = QVBoxLayout(self.where_clauses_widget)
-        operation_layout.addWidget(self.where_clauses_widget)
-
+        
+        # Add WHERE Clause and Apply Operation buttons at the top
+        button_layout = QHBoxLayout()
         add_where_btn = QPushButton("Add WHERE Clause")
         add_where_btn.clicked.connect(self.add_where_clause)
-        operation_layout.addWidget(add_where_btn)
-
+        button_layout.addWidget(add_where_btn)
+        
         self.apply_operation_btn = QPushButton("Apply Operation")
         self.apply_operation_btn.clicked.connect(self.apply_operation)
-        operation_layout.addWidget(self.apply_operation_btn)
+        self.apply_operation_btn.setEnabled(False)
+        button_layout.addWidget(self.apply_operation_btn)
+        operation_layout.addLayout(button_layout)
 
+        # Create scrollable area for where clauses
+        where_scroll = QScrollArea()
+        where_scroll.setWidgetResizable(True)
+        where_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        where_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        where_scroll.setObjectName("whereScroll")
+        where_scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
+        self.where_clauses_widget = QWidget()
+        self.where_clauses_widget.setObjectName("whereClausesWidget")
+        self.where_clauses_layout = QVBoxLayout(self.where_clauses_widget)
+        where_scroll.setWidget(self.where_clauses_widget)
+        
+        # Remove fixed height settings
+        # where_scroll.setMinimumHeight(100)
+        # where_scroll.setMaximumHeight(200)
+        
+        operation_layout.addWidget(where_scroll)
+        
         options_layout.addWidget(operation_group)
         
         # Right side (galaxy viewer)
@@ -528,12 +553,12 @@ class ScenarioToolGUI(QMainWindow):
         try:
             if self.scenario_tool.extract_scenario(file_path):
                 scenario_type = self.scenario_tool.current_type.capitalize()
-                self.drop_label.setText(f'Loaded: {file_path.name}\nType: {scenario_type} Scenario')
+                self.status_label.setText(f'Loaded: {file_path.name}\nType: {scenario_type} Scenario')
                 
                 # Enable buttons
                 self.run_script_btn.setEnabled(True)
                 self.save_scenario_btn.setEnabled(True)
-                self.apply_operation_btn.setEnabled(True)  # Make sure this line is present
+                self.apply_operation_btn.setEnabled(True)
                 
                 # Update lists
                 self.update_script_list()
@@ -541,10 +566,10 @@ class ScenarioToolGUI(QMainWindow):
                 
                 logging.info(f"Successfully loaded scenario: {file_path}")
             else:
-                self.drop_label.setText('Error loading scenario')
+                self.status_label.setText('Error loading scenario')
                 logging.error(f"Failed to load scenario: {file_path}")
         except Exception as e:
-            self.drop_label.setText(f'Error: {str(e)}')
+            self.status_label.setText(f'Error: {str(e)}')
             logging.error(f"Error loading scenario: {str(e)}", exc_info=True)
         
         # Update galaxy viewer if this is a chart scenario
@@ -561,9 +586,8 @@ class ScenarioToolGUI(QMainWindow):
         if self.script_list.currentItem():
             full_script_name = self.script_list.currentItem().text()
             
-            # Parse "source: script_name" format
             try:
-                source, script_name = full_script_name.split(": ", 1)  # Split on first occurrence only
+                source, script_name = full_script_name.split(": ", 1)
                 logging.debug(f"Executing script from {source}: {script_name}")
                 
                 # Get the correct script directory
@@ -586,7 +610,7 @@ class ScenarioToolGUI(QMainWindow):
                     if success:
                         status_msg = f"Script completed in {execution_time:.2f}s"
                         self.status_label.setProperty("status", "success")
-                        self.drop_label.setText(f"{message}\nScenario updated successfully!")
+                        self.status_label.setText(f"{message}\nScenario updated successfully!")
                         
                         # Refresh the galaxy viewer with the updated data
                         if self.scenario_tool.current_type == 'chart':
@@ -600,14 +624,14 @@ class ScenarioToolGUI(QMainWindow):
                     else:
                         status_msg = f"Script failed after {execution_time:.2f}s"
                         self.status_label.setProperty("status", "error")
-                        self.drop_label.setText(message)
+                        self.status_label.setText(message)
                     
                     self.status_label.setText(status_msg)
                     
                 except Exception as e:
                     self.status_label.setText("Script execution failed")
                     self.status_label.setProperty("status", "error")
-                    self.drop_label.setText(f"Error running script: {str(e)}")
+                    self.status_label.setText(f"Error running script: {str(e)}")
                     logging.error("Error in script execution", exc_info=True)
                 
                 finally:
@@ -618,7 +642,7 @@ class ScenarioToolGUI(QMainWindow):
                 
             except ValueError as e:
                 logging.error(f"Invalid script name format: {full_script_name}")
-                self.drop_label.setText("Invalid script format")
+                self.status_label.setText("Invalid script format")
     
     def load_template(self):
         selected = self.template_list.currentItem()
@@ -642,7 +666,7 @@ class ScenarioToolGUI(QMainWindow):
             template_path = template_dir / f"{template_name}.scenario"
         
         if self.scenario_tool.extract_scenario(template_path):
-            self.drop_label.setText(f'Loaded template: {template_name}')
+            self.status_label.setText(f'Loaded template: {template_name}')
             # Enable buttons
             self.run_script_btn.setEnabled(True)
             self.save_scenario_btn.setEnabled(True)
@@ -660,16 +684,16 @@ class ScenarioToolGUI(QMainWindow):
     
     def save_scenario(self):
         if not self.name_input.text():
-            self.drop_label.setText('Please enter a scenario name')
+            self.status_label.setText('Please enter a scenario name')
             return
         
         output_path = self.scenario_tool.output_dir / f"{self.name_input.text()}.scenario"
         if output_path.exists():
-            self.drop_label.setText('A scenario with this name already exists')
+            self.status_label.setText('A scenario with this name already exists')
             return
         
         if self.scenario_tool.create_scenario(self.name_input.text()):
-            self.drop_label.setText('Scenario saved successfully!')
+            self.status_label.setText('Scenario saved successfully!')
     
     def update_script_list(self):
         """Update the list of available scripts based on the loaded template."""
@@ -710,7 +734,7 @@ class ScenarioToolGUI(QMainWindow):
             self.dir_input.setText(str(steam_path))
             self.update_save_directory()
         else:
-            self.drop_label.setText('Steam scenarios folder not found')
+            self.status_label.setText('Steam scenarios folder not found')
     
     def get_steam_scenarios_path(self):
         """Get the path to Steam's scenarios folder"""
@@ -732,7 +756,7 @@ class ScenarioToolGUI(QMainWindow):
             self.dir_input.setText(str(epic_path))
             self.update_save_directory()
         else:
-            self.drop_label.setText('Epic scenarios folder not found')
+            self.status_label.setText('Epic scenarios folder not found')
     
     def use_default_directory(self):
         self.dir_input.setText(str(Path("output")))
@@ -740,12 +764,12 @@ class ScenarioToolGUI(QMainWindow):
     
     def save_as_template(self):
         if not self.name_input.text():
-            self.drop_label.setText('Please enter a template name')
+            self.status_label.setText('Please enter a template name')
             logging.debug("Template save attempted without name")
             return
         
         if not self.scenario_tool.current_type:
-            self.drop_label.setText('Please load a scenario first')
+            self.status_label.setText('Please load a scenario first')
             logging.debug("Template save attempted without scenario loaded")
             return
         
@@ -757,18 +781,18 @@ class ScenarioToolGUI(QMainWindow):
         logging.debug(f"Attempting to save template to: {template_path}")
         
         if template_path.exists():
-            self.drop_label.setText('A template with this name already exists')
+            self.status_label.setText('A template with this name already exists')
             logging.debug(f"Template already exists at: {template_path}")
             return
         
         try:
             template_path.parent.mkdir(parents=True, exist_ok=True)
             if self.scenario_tool.create_scenario(template_path.stem, template_path.parent):
-                self.drop_label.setText('Template saved successfully!')
+                self.status_label.setText('Template saved successfully!')
                 self.update_template_list()
                 logging.debug("Template saved successfully")
         except Exception as e:
-            self.drop_label.setText(f'Error saving template: {e}')
+            self.status_label.setText(f'Error saving template: {e}')
             logging.error(f"Error saving template: {e}", exc_info=True)
     
     def update_template_list(self):
@@ -870,7 +894,7 @@ class ScenarioToolGUI(QMainWindow):
             op_value, is_valid = self.validate_value(op_value_str)
             
             if not is_valid:
-                self.drop_label.setText("Invalid operation value")
+                self.status_label.setText("Invalid operation value")
                 logging.error(f"Invalid operation value: {op_value_str}")
                 return
             
@@ -879,13 +903,13 @@ class ScenarioToolGUI(QMainWindow):
             # Additional validation for numeric operations
             if operation in [Operation.ADD, Operation.MULTIPLY, Operation.DIVIDE, Operation.SCALE]:
                 if not isinstance(op_value, (int, float)):
-                    self.drop_label.setText("Operation value must be a number")
+                    self.status_label.setText("Operation value must be a number")
                     logging.error("Operation value must be a number for this operation type")
                     return
             
             # Check if scenario is loaded
             if not self.scenario_tool.current_type:
-                self.drop_label.setText("Please load a scenario first")
+                self.status_label.setText("Please load a scenario first")
                 logging.error("No scenario loaded")
                 return
             
@@ -921,11 +945,11 @@ class ScenarioToolGUI(QMainWindow):
             self.galaxy_viewer._collect_node_positions()
             self.galaxy_viewer.update()
             
-            self.drop_label.setText("Operation applied successfully!")
+            self.status_label.setText("Operation applied successfully!")
             logging.info("Operation completed successfully")
             
         except Exception as e:
-            self.drop_label.setText(f"Error applying operation: {str(e)}")
+            self.status_label.setText(f"Error applying operation: {str(e)}")
             logging.error(f"Error applying operation: {str(e)}", exc_info=True)
     
     def get_filter_group(self) -> FilterGroup:
