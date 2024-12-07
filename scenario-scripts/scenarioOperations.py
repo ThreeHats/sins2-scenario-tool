@@ -82,8 +82,11 @@ def apply_operation(data: Dict,
         """Find target node and update its children"""
         for node in nodes:
             if str(node.get('id')) == target_id:
-                node['child_nodes'] = new_children
-                logging.debug(f"Updated target node {target_id} with {len(new_children)} children")
+                # Append new children instead of replacing
+                if 'child_nodes' not in node:
+                    node['child_nodes'] = []
+                node['child_nodes'].extend(new_children)
+                logging.debug(f"Updated target node {target_id}, now has {len(node['child_nodes'])} children")
                 return True
             if 'child_nodes' in node:
                 if find_and_update_target(node['child_nodes'], target_id, new_children):
@@ -131,9 +134,12 @@ def apply_operation(data: Dict,
                 logging.debug("Removing object")
                 return None
             elif operation == Operation.MOVE:
-                # Don't remove the node yet, just mark it for moving
-                nodes_to_move.append(obj.copy())  # Make a copy to preserve the original
-                logging.debug(f"Marked node {obj.get('id')} for moving")
+                # Create a deep copy of the node including its children
+                moved_node = obj.copy()
+                if 'child_nodes' in obj:
+                    moved_node['child_nodes'] = obj['child_nodes']
+                nodes_to_move.append(moved_node)
+                logging.debug(f"Marked node {obj.get('id')} for moving with {len(obj.get('child_nodes', []))} children")
                 return None  # Remove from original location
             elif operation == Operation.ADD_PROPERTY:
                 if target_property not in obj:
