@@ -8,53 +8,88 @@ A tool for managing and modifying Sins of a Solar Empire 2 scenarios.
 
 ## Features
 
-- **Scenario Management**
-  - Load and extract .scenario files
-  - Save scenarios to custom locations
-  - Direct integration with Steam and Epic game directories
-  - Support for both chart and generator scenario types
+### Scenario Management
+   - Load scenarios via drag & drop
+   - Save scenarios to custom locations
+   - Direct integration with Steam and Epic game directories
+   - Support for both chart and generator scenario types
+   - Auto-detection of scenario type
 
-- **Template System**
-  - Save scenarios as reusable templates
-  - Organize templates by type (chart/generator)
-  - User and community template sections
+### Visual Galaxy Editor
+   - Interactive galaxy map visualization
+   - Node selection and multi-selection
+   - Direct property editing
+   - Visual node position adjustment
+   - Display options for:
+      - Grid
+      - Orbits
+      - Star lanes
+      - Wormholes
+      - Regular lanes
 
-- **Script System**
-  - Apply Python scripts to modify scenarios
-  - Separate script sections for chart and generator scenarios
-  - User and community script directories
-  - Real-time script directory monitoring
+### Node Operations
+   - Add new properties to nodes
+   - Change existing property values
+   - Move nodes to new parents
+   - Remove nodes
+   - Batch operations on multiple nodes
+   - Filter nodes by properties:
+      - Multiple filter conditions
+      - Numeric comparisons
+      - String matching
+
+### Template System
+   - Save scenarios as reusable templates
+   - Organize templates by type (chart/generator)
+   - User and community template sections
+   - Quick loading of common scenario setups
+
+### Script System
+   - Apply Python scripts to modify scenarios
+   - Separate script sections for chart and generator scenarios
+   - User and community script directories
+   - Real-time script directory monitoring
+   - Community scripts for common operations:
+      - System flattening (moving all systems to the root node)
+      - Wormhole pairing
+      - Node removal
 
 ## Installation
 
-1. Ensure Python 3.8+ is installed
-2. Open a terminal in the scenario-scripts directory
-3. Install required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-3. Run the script:
-   ```
-   python scenarioTool.py
-   ```
-
+1. Download scenario-tool.exe from [GitHub Releases](https://github.com/JustAnotherIdea/sins2-community-tools/releases/latest)
+2. Place the downloaded .exe file in your desired location
+3. Run the scenario-tool.exe file
 
 ## Usage
 
 ### Basic Operations
 
-1. **Loading Scenarios**
-   - Drag and drop a .scenario file onto the tool
-   - The tool automatically detects scenario type (chart/generator)
+1. **Loading and Saving Scenarios**
+   - Drag and drop a .scenario file onto the tool or load from templates list
 
-2. **Saving Scenarios**
-   - Enter a name for your scenario
-   - Choose a save location (default, Steam, or Epic directory)
-   - Click "Save Scenario"
+2. **Editing Nodes**
+   - Click nodes to select them
+   - Shift+click or click+drag to multi-select
+   - Edit properties in the Node Details panel
+   - Drag nodes to move them
 
-3. **Templates**
-   - Save frequently used scenarios as templates
-   - Templates are organized by type and source (user/community)
+3. **Batch Operations**
+   - Use filters to select nodes
+   - Apply operations to all selected nodes
+   - Available operations:
+     - Add properties
+     - Change values
+     - Move nodes
+     - Remove nodes
+
+4. **Saving Work**
+   - Save directly to game directories
+   - Place scenarios in the user templates directory for easy access
+   - All changes are automatically saved in the working directory
+
+5. **Updating Community Content and Applying Scripts**
+   - Use the "Get Community Content" button to update the community templates and scripts
+   - When an update is available, a notification will appear at launch
 
 ### Working with Scripts
 
