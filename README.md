@@ -1,5 +1,7 @@
 ### WIP
 
+- See [project board](https://github.com/users/JustAnotherIdea/projects/5) for progress
+
 # Sins 2 Scenario Tool
 
 A tool for managing and modifying Sins of a Solar Empire 2 scenarios.
