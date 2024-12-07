@@ -91,11 +91,24 @@ def apply_operation(data: Dict,
         return False
 
     def process_value(current_value: Any) -> Any:
+        # Try to convert string numbers to float first
+        if isinstance(current_value, str):
+            try:
+                current_value = float(current_value)
+            except ValueError:
+                # If it's not a numeric string, we can't perform math operations
+                if operation in [Operation.ADD, Operation.MULTIPLY, Operation.DIVIDE, Operation.SCALE]:
+                    logging.warning(f"Cannot perform {operation.value} on non-numeric value: {current_value}")
+                    return current_value
+
         if operation == Operation.ADD:
             return current_value + (value * operator_adjustment)
         elif operation == Operation.MULTIPLY:
             return current_value * (value * operator_adjustment)
         elif operation == Operation.DIVIDE:
+            if value * operator_adjustment == 0:
+                logging.warning("Cannot divide by zero")
+                return current_value
             return current_value / (value * operator_adjustment)
         elif operation == Operation.SCALE:
             return current_value * operator_adjustment

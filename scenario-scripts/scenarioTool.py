@@ -466,22 +466,25 @@ class ScenarioToolGUI(QMainWindow):
         # Operation line (combo and inputs)
         operation_line = QHBoxLayout()
         self.operation_combo = QComboBox()
-        self.operation_combo.addItems([op.value for op in Operation])
+        operations = [op.value for op in Operation if op != Operation.SCALE]  # Remove SCALE
+        self.operation_combo.addItems(operations)
         self.target_property = QLineEdit()
-        self.target_property.setPlaceholderText("property to change")
         self.operation_value = QLineEdit()
-        self.operation_value.setPlaceholderText("new value")
+        self.operation_label = QLabel("to")  # Store reference to label
 
-        # Set the operation group to expand
-        operation_group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        
         self.operation_combo.currentTextChanged.connect(self.update_operation_placeholders)
-        
+
         operation_line.addWidget(self.operation_combo)
         operation_line.addWidget(self.target_property)
-        operation_line.addWidget(QLabel("to"))
+        operation_line.addWidget(self.operation_label)
         operation_line.addWidget(self.operation_value)
         operation_layout.addLayout(operation_line)
+
+        # Initialize placeholders
+        self.update_operation_placeholders()
+        
+        # Set the operation group to expand
+        operation_group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         # Add WHERE Clause and Apply Operation buttons at the top
         button_layout = QHBoxLayout()
@@ -673,6 +676,7 @@ class ScenarioToolGUI(QMainWindow):
         if self.scenario_tool.extract_scenario(template_path):
             self.status_label.setText(f'Loaded template: {template_name}')
             # Enable buttons
+            self.run_script_btn.setEnabled(True)
             self.save_scenario_btn.setEnabled(True)
             self.apply_operation_btn.setEnabled(True)
             
@@ -889,64 +893,77 @@ class ScenarioToolGUI(QMainWindow):
             operation = Operation(self.operation_combo.currentText())
             logging.debug(f"Operation: {operation}")
             
-            # For MOVE operation, target_property is the destination node ID
-            if operation == Operation.MOVE:
-                target_prop = self.operation_value.text()  # Use the value field as the target node ID
-                logging.debug(f"Target node ID for move: {target_prop}")
-            else:
-                target_prop = self.target_property.text()
-                logging.debug(f"Target property: {target_prop}")
-            
-            # Validate operation value
-            op_value_str = self.operation_value.text()
-            op_value, is_valid = self.validate_value(op_value_str)
-            
-            if not is_valid:
-                self.status_label.setText("Invalid operation value")
-                logging.error(f"Invalid operation value: {op_value_str}")
-                return
-            
-            logging.debug(f"Validated operation value: {op_value} (type: {type(op_value)})")
-            
-            # Additional validation for numeric operations
-            if operation in [Operation.ADD, Operation.MULTIPLY, Operation.DIVIDE, Operation.SCALE]:
-                if not isinstance(op_value, (int, float)):
-                    self.status_label.setText("Operation value must be a number")
-                    logging.error("Operation value must be a number for this operation type")
+            # Handle different operations and their validations
+            if operation == Operation.ADD:
+                try:
+                    op_value = float(self.target_property.text())  # number
+                    target_prop = self.operation_value.text()  # property
+                except ValueError:
+                    self.status_label.setText("Please enter a valid number")
+                    return
+                
+            elif operation == Operation.MULTIPLY or operation == Operation.DIVIDE:
+                try:
+                    target_prop = self.target_property.text()  # property
+                    op_value = float(self.operation_value.text())  # number
+                    if operation == Operation.DIVIDE and op_value == 0:
+                        self.status_label.setText("Cannot divide by zero")
+                        return
+                except ValueError:
+                    self.status_label.setText("Please enter a valid number")
+                    return
+                
+            elif operation == Operation.CHANGE:
+                target_prop = self.target_property.text()  # property
+                op_value = self.operation_value.text()  # string value
+                
+            elif operation == Operation.REMOVE:
+                target_prop = ""  # Not used
+                op_value = None  # Not used
+                
+            elif operation == Operation.MOVE:
+                target_prop = self.operation_value.text()  # node id
+                if not target_prop:
+                    self.status_label.setText("Please enter a target node ID")
+                    return
+                op_value = None  # Not used
+                
+            elif operation == Operation.ADD_PROPERTY:
+                target_prop = self.target_property.text()  # property name
+                if not target_prop:
+                    self.status_label.setText("Please enter a property name")
+                    return
+                # Validate and convert the value
+                op_value_str = self.operation_value.text()
+                op_value, is_valid = self.validate_value(op_value_str)
+                if not is_valid:
+                    self.status_label.setText("Invalid property value")
                     return
             
             # Check if scenario is loaded
             if not self.scenario_tool.current_type:
                 self.status_label.setText("Please load a scenario first")
-                logging.error("No scenario loaded")
                 return
             
-            # Load the appropriate file based on scenario type
-            if self.scenario_tool.current_type == 'chart':
-                file_path = self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json"
-            else:
-                file_path = self.scenario_tool.working_dirs['generator'] / "galaxy_chart_generator_params.json"
+            # Load and modify the appropriate file
+            file_path = (self.scenario_tool.working_dirs['chart'] / "galaxy_chart.json" 
+                        if self.scenario_tool.current_type == 'chart' 
+                        else self.scenario_tool.working_dirs['generator'] / "galaxy_chart_generator_params.json")
             
-            logging.debug(f"Using file path: {file_path}")
-            
-            # Load, modify and save the file
             with open(file_path, 'r') as f:
                 data = json.load(f)
-                logging.debug("Successfully loaded JSON data")
             
             from scenarioOperations import apply_operation as apply_op
             modified_data = apply_op(
                 data=data,
                 operation=operation,
-                target_property=str(op_value) if operation == Operation.MOVE else target_prop,  # Convert node ID to string
+                target_property=target_prop,
                 filter_group=filter_group,
                 value=op_value
             )
-            logging.debug("Successfully applied operation")
             
             with open(file_path, 'w') as f:
                 json.dump(modified_data, f, indent=4)
-                logging.debug("Successfully saved modified data")
             
             # Update galaxy view
             self.galaxy_viewer.set_data(modified_data)
@@ -1022,18 +1039,48 @@ class ScenarioToolGUI(QMainWindow):
         clause_widget.deleteLater()
 
     def update_operation_placeholders(self):
-        """Update input field placeholders based on selected operation"""
-        operation = self.operation_combo.currentText()
+        """Update input field visibility and placeholders based on selected operation"""
+        operation = Operation(self.operation_combo.currentText())
         
-        if operation == Operation.ADD_PROPERTY.value:
-            self.target_property.setPlaceholderText("property to add")
-            self.operation_value.setPlaceholderText("property value")
-        elif operation == Operation.MOVE.value:
-            self.target_property.setPlaceholderText("target node ID")
-            self.operation_value.setPlaceholderText("unused")
-        else:
-            self.target_property.setPlaceholderText("property to change")
-            self.operation_value.setPlaceholderText("new value")
+        # First, show all widgets (we'll hide as needed)
+        self.target_property.show()
+        self.operation_value.show()
+        self.operation_label.show()  # This is the "to" label
+        
+        if operation == Operation.ADD:
+            self.target_property.setPlaceholderText("number")
+            self.operation_value.setPlaceholderText("property")
+            self.operation_label.setText("to")
+        
+        elif operation == Operation.MULTIPLY:
+            self.target_property.setPlaceholderText("property")
+            self.operation_value.setPlaceholderText("number")
+            self.operation_label.setText("by")
+        
+        elif operation == Operation.DIVIDE:
+            self.target_property.setPlaceholderText("property")
+            self.operation_value.setPlaceholderText("number")
+            self.operation_label.setText("by")
+        
+        elif operation == Operation.CHANGE:
+            self.target_property.setPlaceholderText("property")
+            self.operation_value.setPlaceholderText("string")
+            self.operation_label.setText("to")
+        
+        elif operation == Operation.REMOVE:
+            self.target_property.hide()
+            self.operation_value.hide()
+            self.operation_label.hide()
+        
+        elif operation == Operation.MOVE:
+            self.target_property.hide()
+            self.operation_value.setPlaceholderText("node id")
+            self.operation_label.setText("to")
+        
+        elif operation == Operation.ADD_PROPERTY:
+            self.target_property.setPlaceholderText("property")
+            self.operation_value.setPlaceholderText("value")
+            self.operation_label.setText(":")
 
     def save_galaxy_data(self, data):
         """Save the galaxy data to the working directory"""
