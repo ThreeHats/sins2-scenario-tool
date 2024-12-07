@@ -280,3 +280,15 @@ QGroupBox::title {
     padding: 8px;
     color: white;
 }
+
+QPushButton#communityButton {
+    background-color: #2e7d32;  /* Green background */
+}
+
+QPushButton#communityButton:hover {
+    background-color: #388e3c;
+}
+
+QPushButton#communityButton:pressed {
+    background-color: #1b5e20;
+}

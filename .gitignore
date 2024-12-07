@@ -5,3 +5,4 @@ scenario-scripts/output/
 scenario-scripts/user/
 scenario-scripts/__pycache__/
 scenario-scripts/build/
+scenario-scripts/dist/community/

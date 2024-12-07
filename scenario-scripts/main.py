@@ -20,9 +20,6 @@ def main():
         with open(style_path, 'r') as f:
             app.setStyleSheet(f.read())
     
-    # Download community files
-    checker.download_community_files()
-    
     # Continue with normal startup
     window = ScenarioToolGUI()
     window.show()

@@ -419,9 +419,14 @@ class ScenarioToolGUI(QMainWindow):
         default_btn = QPushButton('Use Default Output')
         default_btn.clicked.connect(self.use_default_directory)
         
+        community_btn = QPushButton('Get Community Content')
+        community_btn.setObjectName("communityButton")
+        community_btn.clicked.connect(self.download_community_content)
+
         dir_buttons_layout.addWidget(steam_btn)
         dir_buttons_layout.addWidget(epic_btn)
         dir_buttons_layout.addWidget(default_btn)
+        dir_buttons_layout.addWidget(community_btn)
         options_layout.addLayout(dir_buttons_layout)
         
         action_buttons_layout = QHBoxLayout()
@@ -668,9 +673,12 @@ class ScenarioToolGUI(QMainWindow):
         if self.scenario_tool.extract_scenario(template_path):
             self.status_label.setText(f'Loaded template: {template_name}')
             # Enable buttons
-            self.run_script_btn.setEnabled(True)
             self.save_scenario_btn.setEnabled(True)
             self.apply_operation_btn.setEnabled(True)
+            
+            # Update script list and run button state
+            self.update_script_list()
+            self.update_run_button_state()
             
             # Initialize galaxy viewer if it's a chart scenario
             if self.scenario_tool.current_type == 'chart':
@@ -1051,6 +1059,10 @@ class ScenarioToolGUI(QMainWindow):
             
             if msg.exec() == QMessageBox.StandardButton.Yes:
                 self.version_checker.download_update(update_url)
+
+    def download_community_content(self):
+        """Download community files using the version checker"""
+        self.version_checker.download_community_files()
 
 class GUILogHandler(logging.Handler):
     def __init__(self, log_widget):
