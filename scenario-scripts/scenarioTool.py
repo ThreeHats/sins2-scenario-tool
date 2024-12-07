@@ -1686,12 +1686,35 @@ class GalaxyViewer(QWidget):
         
         # Show common properties with same values
         for prop in sorted(common_props):
-            if prop not in ['child_nodes']:
+            if prop == 'position':
+                # Handle position specially - split into X and Y
+                positions = [node[prop] for node in nodes]
+                x_values = {str(pos[0]) for pos in positions}
+                y_values = {str(pos[1]) for pos in positions}
+                
+                if len(x_values) == 1:
+                    self._add_property_row("Position X", x_values.pop())
+                else:
+                    self._add_property_row("Position X", "<multiple values>")
+                    
+                if len(y_values) == 1:
+                    self._add_property_row("Position Y", y_values.pop())
+                else:
+                    self._add_property_row("Position Y", "<multiple values>")
+            elif prop not in ['child_nodes']:
                 values = {str(node[prop]) for node in nodes}
                 if len(values) == 1:
                     self._add_property_row(prop, values.pop())
                 else:
                     self._add_property_row(prop, "<multiple values>")
+        
+        # Calculate and set the table height based on content
+        header_height = self.node_info.horizontalHeader().height()
+        content_height = sum(self.node_info.rowHeight(i) for i in range(self.node_info.rowCount()))
+        total_height = header_height + content_height + 2  # Add small buffer for borders
+        
+        # Set fixed height directly
+        self.node_info.setFixedHeight(total_height)
         
         self.info_container.setVisible(True)
         self.node_info.itemChanged.connect(self._on_property_changed)
