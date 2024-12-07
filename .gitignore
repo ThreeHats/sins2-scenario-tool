@@ -6,3 +6,6 @@ scenario-scripts/user/
 scenario-scripts/__pycache__/
 scenario-scripts/build/
 scenario-scripts/dist/community/
+scenario-scripts/dist/working/
+scenario-scripts/dist/output/
+scenario-scripts/dist/user/
