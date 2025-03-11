@@ -8,7 +8,7 @@ from packaging import version
 
 class VersionChecker:
     def __init__(self):
-        self.github_api = "https://api.github.com/repos/JustAnotherIdea/sins2-community-tools/releases/latest"
+        self.github_api = "https://api.github.com/repos/ThreeHats/sins2-community-tools/releases/latest"
         self.current_version = "1.0.0"  # This will be updated during build
         self.app_dir = self._get_app_directory()
         
@@ -69,7 +69,7 @@ class VersionChecker:
 
     def download_community_files(self):
         """Download community files from GitHub repo"""
-        base_url = "https://api.github.com/repos/JustAnotherIdea/sins2-community-tools/contents/scenario-scripts/community"
+        base_url = "https://api.github.com/repos/ThreeHats/sins2-community-tools/contents/scenario-scripts/community"
         try:
             logging.info(f"Attempting to download community files from: {base_url}")
             response = requests.get(base_url)

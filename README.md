@@ -1,12 +1,12 @@
 ### WIP
 
-- See [project board](https://github.com/users/JustAnotherIdea/projects/5) for progress
+- See [project board](https://github.com/users/ThreeHats/projects/5) for progress
 
 # Sins 2 Scenario Tool
 
 A tool for managing and modifying Sins of a Solar Empire 2 scenarios.
 
-![screenshot](https://github.com/JustAnotherIdea/sins2-community-tools/blob/main/images/image.png?raw=true)
+![screenshot](https://github.com/ThreeHats/sins2-community-tools/blob/main/images/image.png?raw=true)
 
 ## Features
 
@@ -58,7 +58,7 @@ A tool for managing and modifying Sins of a Solar Empire 2 scenarios.
 
 ## Installation
 
-1. Download scenario-tool.exe from [GitHub Releases](https://github.com/JustAnotherIdea/sins2-community-tools/releases/latest)
+1. Download scenario-tool.exe from [GitHub Releases](https://github.com/ThreeHats/sins2-community-tools/releases/latest)
 2. Place the downloaded .exe file in your desired location
 3. Run the scenario-tool.exe file
 
