@@ -6,7 +6,8 @@
 
 A tool for managing and modifying Sins of a Solar Empire 2 scenarios.
 
-![screenshot](https://github.com/ThreeHats/sins2-community-tools/blob/main/images/image.png?raw=true)
+<img width="1920" height="1040" alt="sins2-scenario-tool" src="https://github.com/user-attachments/assets/6160150a-878b-4b9b-b6f4-be9fbd58501b" />
+
 
 ## Features
 
